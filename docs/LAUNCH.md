@@ -6,11 +6,11 @@ Konten bzw. rechtliche Angaben). Reihenfolge = Priorität.
 ## A. Damit Freunde die Web-App nutzen können
 
 1. **GitHub Pages einschalten (einmalig)**
-   GitHub → Repository `i-need-you-app` → *Settings* → *Pages* →
+   GitHub → Repository `Nexxup` → *Settings* → *Pages* →
    *Build and deployment*: Source **„Deploy from a branch“**, Branch
    **`gh-pages`**, Ordner **`/ (root)`** → *Save*.
    Danach ist die App nach 1–2 Minuten erreichbar unter
-   **https://thesolutionist001.github.io/i-need-you-app/**
+   **https://thesolutionist001.github.io/Nexxup/**
    (jeder neue Stand auf `main` wird automatisch veröffentlicht).
    **Repository umbenannt?** Dann ändert sich der letzte Teil der Adresse auf
    den neuen Namen (z. B. `…github.io/nexxup/`). Einmal neu veröffentlichen:
@@ -19,9 +19,9 @@ Konten bzw. rechtliche Angaben). Reihenfolge = Priorität.
 
 2. **Supabase: Adresse der App eintragen**
    Supabase → *Authentication* → *URL Configuration*:
-   - *Site URL*: `https://thesolutionist001.github.io/i-need-you-app/`
+   - *Site URL*: `https://thesolutionist001.github.io/Nexxup/`
    - *Redirect URLs* (hinzufügen):
-     `https://thesolutionist001.github.io/i-need-you-app/**` und
+     `https://thesolutionist001.github.io/Nexxup/**` und
      `http://localhost:9100/**`
    Ohne das funktionieren die Links in E-Mails („Passwort vergessen“,
    später E-Mail-Bestätigung) nicht.

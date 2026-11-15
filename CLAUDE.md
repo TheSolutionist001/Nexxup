@@ -4,7 +4,7 @@ Diese Datei ist der technische Leitfaden für Claude Code in diesem Repository. 
 
 ## 1. Projektübersicht
 
-**Nexxup** (Arbeitstitel war "I Need You"; Repo-Name und App-ID `com.solutionist.ineedyouapp` bleiben vorerst) ist eine Community- und Event-Plattform (SaaS), die Menschen anhand gemeinsamer Interessen und Standort zusammenbringt. Zwei Kernbereiche:
+**Nexxup** (Arbeitstitel war "I Need You"; das GitHub-Repository heißt seit 15.11.2026 `TheSolutionist001/Nexxup`, Web-App: https://thesolutionist001.github.io/Nexxup/ – Groß-/Kleinschreibung beachten; die App-ID `com.solutionist.ineedyouapp` bleibt vorerst) ist eine Community- und Event-Plattform (SaaS), die Menschen anhand gemeinsamer Interessen und Standort zusammenbringt. Zwei Kernbereiche:
 
 - **Gruppen**: Organisierte Aktivitäten (Sport, Wandern, Kochen …) mit Kapazitätsgrenze und Warteliste.
 - **Schwarzes Brett**: Spontane Einzelgesuche mit Umkreissuche (PostGIS) und Zielgruppen-Filterung.

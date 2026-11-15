@@ -32,7 +32,7 @@ npx quasar build
 
 Jeder Stand auf `main` wird automatisch gebaut und auf GitHub Pages
 veröffentlicht (`.github/workflows/deploy.yml`):
-`https://thesolutionist001.github.io/<repository-name>/`
+https://thesolutionist001.github.io/Nexxup/
 
 ## Datenbank
 
