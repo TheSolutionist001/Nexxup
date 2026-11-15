@@ -13,6 +13,7 @@ export interface Group {
   city: string | null;
   // 1 = jede Woche, 2 = alle 2 Wochen ...; null = einmalig
   meetup_repeat_weeks?: number | null;
+  skill_level?: string;
 }
 
 export interface GroupMember {
@@ -69,6 +70,7 @@ export interface NewGroupInput {
   lat: number | null;
   lng: number | null;
   repeatWeeks: number | null;
+  skillLevel: string;
 }
 
 export type RsvpStatus = 'yes' | 'no';

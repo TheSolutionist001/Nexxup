@@ -5,7 +5,12 @@ const messages: Record<string, string> = {
   email_not_confirmed: 'Bitte bestätige zuerst deine E-Mail-Adresse (Link in der E-Mail anklicken).',
   user_already_exists: 'Für diese E-Mail-Adresse existiert bereits ein Konto.',
   email_exists: 'Für diese E-Mail-Adresse existiert bereits ein Konto.',
-  weak_password: 'Das Passwort ist zu schwach (mindestens 6 Zeichen).',
+  weak_password: 'Das Passwort ist zu schwach (mindestens 8 Zeichen, kein bekanntes Passwort).',
+  same_password: 'Das neue Passwort muss sich vom alten unterscheiden.',
+  signup_disabled: 'Die Registrierung ist derzeit geschlossen.',
+  email_address_invalid: 'Diese E-Mail-Adresse wird nicht akzeptiert.',
+  validation_failed: 'Bitte prüfe deine Eingaben.',
+  over_request_rate_limit: 'Zu viele Versuche. Bitte warte kurz und versuche es erneut.',
   over_email_send_rate_limit: 'Zu viele Versuche. Bitte warte kurz und versuche es erneut.',
 };
 

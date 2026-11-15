@@ -12,6 +12,7 @@ export default defineConfig((/* ctx */) => {
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
     boot: [
+      'theme',
       'supabase',
       'onesignal',
     ],
@@ -31,8 +32,8 @@ export default defineConfig((/* ctx */) => {
       // 'line-awesome',
       // 'roboto-font-latin-ext', // this or either 'roboto-font', NEVER both!
 
-      'roboto-font', // optional, you are not bound to it
-      'material-icons', // optional, you are not bound to it
+      // Schriften kommen aus @fontsource (Archivo/Unbounded) - kein Roboto noetig.
+      'material-icons',
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
@@ -52,6 +53,9 @@ export default defineConfig((/* ctx */) => {
       // filenameBasedRouting: true,
 
       vueRouterMode: 'hash', // available values: 'hash', 'history'
+      // Unterordner beim Hosting (z. B. GitHub Pages: /i-need-you-app/).
+      // Lokal und in der Handy-App bleibt es '/'.
+      publicPath: process.env.NEXXUP_PUBLIC_PATH || '/',
       // vueRouterBase,
       // vueDevtools,
 
@@ -74,13 +78,16 @@ export default defineConfig((/* ctx */) => {
     devServer: {
       // https: true,
       port: 9100,
-      open: true // opens browser window automatically
+      open: !process.env.CI && !process.env.NEXXUP_NO_OPEN // Browser automatisch oeffnen
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
       config: {
-        dark: true,
+        // 'auto' = folgt dem System; die gemerkte Wahl setzt boot/theme.ts
+        dark: 'auto',
+        // Meldungen oben anzeigen - unten wuerde die Tab-Leiste sie verdecken
+        notify: { position: 'top' },
         // Nexxup-Farben (aus dem Logo, Claude Design Variante 6a)
         brand: {
           primary: '#ff5a1f',

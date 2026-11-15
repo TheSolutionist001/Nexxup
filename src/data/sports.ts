@@ -1,5 +1,5 @@
-// Sportarten (muessen mit dem check-Constraint in 0009_sport_meetups.sql
-// uebereinstimmen). Emoji + Farbverlauf ersetzen vorerst echte Fotos.
+// Sportarten (muessen mit dem check-Constraint in 0017_launch_readiness.sql
+// uebereinstimmen - ein Test prueft das). Emoji + Farbverlauf ersetzen vorerst echte Fotos.
 export interface Sport {
   key: string;
   label: string;
@@ -21,6 +21,14 @@ export const sports: Sport[] = [
   { key: 'schwimmen', label: 'Schwimmen', emoji: '🏊', from: '#22d3ee', to: '#164e63' },
   { key: 'yoga', label: 'Yoga', emoji: '🧘', from: '#a78bfa', to: '#4c1d95' },
   { key: 'klettern', label: 'Klettern', emoji: '🧗', from: '#d6a36a', to: '#5b3a17' },
+  { key: 'padel', label: 'Padel', emoji: '🎾', from: '#2dd4bf', to: '#115e59' },
+  { key: 'badminton', label: 'Badminton', emoji: '🏸', from: '#facc15', to: '#713f12' },
+  { key: 'tischtennis', label: 'Tischtennis', emoji: '🏓', from: '#f87171', to: '#7f1d1d' },
+  { key: 'handball', label: 'Handball', emoji: '🤾', from: '#60a5fa', to: '#1e3a8a' },
+  { key: 'kampfsport', label: 'Kampfsport', emoji: '🥋', from: '#e5e7eb', to: '#374151' },
+  { key: 'tanzen', label: 'Tanzen', emoji: '💃', from: '#f0abfc', to: '#701a75' },
+  { key: 'wintersport', label: 'Wintersport', emoji: '⛷️', from: '#bae6fd', to: '#075985' },
+  { key: 'golf', label: 'Golf', emoji: '⛳', from: '#86efac', to: '#14532d' },
   { key: 'sonstiges', label: 'Sonstiges', emoji: '✨', from: '#a8a196', to: '#3a362e' },
 ];
 
@@ -34,4 +42,16 @@ export function getSport(key: string | null | undefined): Sport {
 export function sportGradient(key: string | null | undefined): string {
   const s = getSport(key);
   return `linear-gradient(135deg, ${s.from} 0%, ${s.to} 100%)`;
+}
+
+// Niveau einer Gruppe (muss zum DB-check groups_skill_level_check passen)
+export const skillLevels: { label: string; value: string }[] = [
+  { label: 'Alle Niveaus', value: 'alle' },
+  { label: 'Anfänger', value: 'anfaenger' },
+  { label: 'Mittel', value: 'mittel' },
+  { label: 'Fortgeschritten', value: 'fortgeschritten' },
+];
+
+export function skillLabel(value: string | null | undefined): string {
+  return skillLevels.find((s) => s.value === value)?.label ?? 'Alle Niveaus';
 }

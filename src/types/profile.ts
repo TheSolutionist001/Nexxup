@@ -5,6 +5,9 @@ export interface Profile {
   first_name: string;
   gender: Gender | null;
   city: string | null;
+  // Oeffentlich sichtbar (wie Vorname + Stadt)
+  bio: string | null;
+  sports: string[];
   created_at: string;
   is_admin: boolean;
   is_banned: boolean;
@@ -16,3 +19,12 @@ export const genderOptions: { label: string; value: Gender }[] = [
   { label: 'Divers', value: 'divers' },
   { label: 'Keine Angabe', value: 'keine_angabe' },
 ];
+
+// Oeffentliche Sicht auf ein fremdes Profil (View public_profiles)
+export interface PublicProfile {
+  id: string;
+  first_name: string | null;
+  city: string | null;
+  bio: string | null;
+  sports: string[] | null;
+}

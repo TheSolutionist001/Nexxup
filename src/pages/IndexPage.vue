@@ -335,13 +335,13 @@ useRealtime('groups', null, () => void load(true));
   width: 52px;
   height: 56px;
   border-radius: 14px;
-  background: rgba(255, 90, 31, 0.14);
+  background: var(--nx-accent-soft);
   text-align: center;
   padding-top: 7px;
   flex-shrink: 0;
 }
 .nx-day__wd {
-  color: var(--nx-accent);
+  color: var(--nx-accent-text);
   font-size: 11px;
   font-weight: 700;
 }

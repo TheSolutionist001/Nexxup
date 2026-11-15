@@ -3,7 +3,7 @@
     <div class="nx-gcard__cover" :style="{ background: sportGradient(group.sport) }">
       <div class="nx-gcard__emoji">{{ sport.emoji }}</div>
       <div class="nx-gcard__tags">
-        <span v-if="group.next_meetup_at" class="nx-tag">{{ formatMeetup(group.next_meetup_at) }}</span>
+        <span v-if="isUpcoming(group.next_meetup_at)" class="nx-tag">{{ formatMeetup(group.next_meetup_at!) }}</span>
         <span v-if="distance" class="nx-tag">{{ distance }}</span>
       </div>
       <div class="nx-gcard__free" :class="{ 'nx-gcard__free--full': freeSpots === 0 }">
@@ -45,7 +45,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getSport, sportGradient } from '@/data/sports';
-import { formatDistanceShort, formatMeetup } from '@/utils/format';
+import { formatDistanceShort, formatMeetup, isUpcoming } from '@/utils/format';
 import type { DiscoverGroup } from '@/types/group';
 
 const props = defineProps<{ group: DiscoverGroup }>();
@@ -72,7 +72,7 @@ const target = computed(() =>
   transition: border-color 0.15s, transform 0.15s;
 }
 .nx-gcard:hover {
-  border-color: rgba(255, 90, 31, 0.45);
+  border-color: var(--nx-accent);
 }
 .nx-gcard__cover {
   position: relative;

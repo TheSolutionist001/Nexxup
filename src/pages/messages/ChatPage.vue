@@ -4,7 +4,9 @@
       <div class="row items-center no-wrap q-pt-md q-mb-sm">
         <q-btn flat round dense icon="arrow_back" to="/messages" aria-label="Zurück" />
         <div class="col q-ml-sm ellipsis">
-          <div class="text-weight-bold ellipsis">{{ thread?.other_first_name ?? 'Unterhaltung' }}</div>
+          <div class="text-weight-bold ellipsis cursor-pointer" @click="thread && ui.showProfile(thread.other_id)">
+            {{ thread?.other_first_name ?? 'Unterhaltung' }}
+          </div>
           <div v-if="thread?.post_body" class="text-caption text-grey ellipsis">Zu: {{ thread.post_body }}</div>
         </div>
         <q-btn v-if="thread" flat round dense icon="more_vert" aria-label="Optionen">
@@ -64,6 +66,7 @@ import SafetyTips from '@/components/SafetyTips.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { useChatStore } from '@/stores/chat-store';
 import { useModerationStore } from '@/stores/moderation-store';
+import { useUiStore } from '@/stores/ui-store';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import type { ChatThreadSummary } from '@/types/chat';
 import type { ReportReason } from '@/types/report';
@@ -73,6 +76,7 @@ const $q = useQuasar();
 const authStore = useAuthStore();
 const chatStore = useChatStore();
 const moderationStore = useModerationStore();
+const ui = useUiStore();
 
 const threadId = route.params.id as string;
 const thread = ref<ChatThreadSummary | null>(null);

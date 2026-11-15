@@ -26,6 +26,11 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [id: string | null] }>();
 
 const el = ref<HTMLDivElement | null>(null);
+// Kartenbilder: OpenStreetMap (frei nutzbar mit Quellenangabe, ohne Schluessel).
+// Im dunklen Modus werden dieselben Bilder per CSS abgedunkelt (siehe unten),
+// einen eigenen dunklen Kartenstil gibt es bei OSM nicht.
+// Fuer viel Verkehr spaeter einen Anbieter mit Vertrag waehlen (MapTiler, Stadia).
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 let map: L.Map | null = null;
 let markerLayer: L.LayerGroup | null = null;
 let radiusCircle: L.Circle | null = null;
@@ -100,10 +105,9 @@ onMounted(() => {
     zoomControl: false,
     attributionControl: true,
   });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer(TILE_URL, {
     maxZoom: 18,
-    subdomains: 'abcd',
-    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende',
   }).addTo(map);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.setPrefix(false);
@@ -119,6 +123,7 @@ onBeforeUnmount(() => {
 });
 
 watch(() => [props.items, props.selectedId], drawMarkers);
+
 watch(() => [props.center?.lat, props.center?.lng, props.radiusKm], drawRadius);
 </script>
 
@@ -128,12 +133,16 @@ watch(() => [props.center?.lat, props.center?.lng, props.radiusKm], drawRadius);
   position: relative;
   border-radius: 22px;
   overflow: hidden;
-  border: 1px solid rgba(243, 239, 232, 0.08);
+  border: 1px solid var(--nx-border);
 }
 .nx-map {
   height: min(58vh, 520px);
   min-height: 320px;
   background: var(--nx-bg);
+}
+/* Dunkler Modus: helle OSM-Kacheln abdunkeln (umkehren + Farbton zurueckdrehen) */
+body.body--dark .nx-map .leaflet-tile {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55);
 }
 .nx-map-legend {
   position: absolute;
@@ -144,10 +153,10 @@ watch(() => [props.center?.lat, props.center?.lng, props.radiusKm], drawRadius);
   gap: 10px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(18, 17, 13, 0.82);
+  background: var(--nx-glass);
   backdrop-filter: blur(8px);
   font-size: 12px;
-  color: var(--nx-cream);
+  color: var(--nx-text);
 }
 .nx-map-legend span {
   display: inline-flex;
@@ -166,7 +175,7 @@ watch(() => [props.center?.lat, props.center?.lng, props.radiusKm], drawRadius);
 }
 .nx-map-dot--post {
   border-radius: 4px 50% 50% 50%;
-  border-color: var(--nx-cream);
+  border-color: var(--nx-text);
 }
 .nx-marker {
   width: 40px;
@@ -185,23 +194,23 @@ watch(() => [props.center?.lat, props.center?.lng, props.radiusKm], drawRadius);
 }
 .nx-marker--post {
   border-radius: 6px 50% 50% 50%;
-  border: 3px solid var(--nx-cream);
+  border: 3px solid var(--nx-text);
 }
 .nx-marker--selected {
   transform: scale(1.25);
   background: var(--nx-accent);
 }
 .nx-map .leaflet-control-attribution {
-  background: rgba(18, 17, 13, 0.75);
+  background: var(--nx-glass);
   color: var(--nx-muted);
   font-size: 10px;
 }
 .nx-map .leaflet-control-attribution a {
-  color: var(--nx-cream);
+  color: var(--nx-text);
 }
 .nx-map .leaflet-bar a {
   background: var(--nx-surface);
-  color: var(--nx-cream);
-  border-bottom-color: rgba(243, 239, 232, 0.1);
+  color: var(--nx-text);
+  border-bottom-color: var(--nx-border);
 }
 </style>

@@ -8,6 +8,7 @@ import {
 
 import routes from './routes';
 import { useAuthStore } from '@/stores/auth-store';
+import { recovery } from '@/boot/supabase';
 
 /*
  * If not building with SSR mode, you can
@@ -24,7 +25,8 @@ export default defineRouter(({ store }) => {
     : (import.meta.env.QUASAR_VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory);
 
   const Router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
+    // Beim Zurueck-Gehen die alte Position wiederherstellen, sonst nach oben.
+    scrollBehavior: (_to, _from, saved) => saved ?? { left: 0, top: 0 },
     routes,
 
     // Leave this as is and make changes in quasar.conf.js instead!
@@ -44,14 +46,22 @@ export default defineRouter(({ store }) => {
     const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin);
     const isAuthPage = to.path === '/login' || to.path === '/register';
 
+    // Ueber einen "Passwort zuruecksetzen"-Link geoeffnet -> neues Passwort setzen.
+    if (recovery.pending && authStore.isAuthenticated) {
+      recovery.pending = false;
+      if (to.path !== '/reset-password') return '/reset-password';
+    }
+
     if (requiresAuth && !authStore.isAuthenticated) {
-      return '/login';
+      // Ziel merken (z. B. Einladelink), damit es nach dem Login dorthin geht.
+      return to.fullPath === '/' ? '/login' : { path: '/login', query: { redirect: to.fullPath } };
     }
     if (requiresAdmin && !authStore.profile?.is_admin) {
       return '/';
     }
     if (isAuthPage && authStore.isAuthenticated) {
-      return '/';
+      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/';
+      return redirect.startsWith('/') ? redirect : '/';
     }
   });
 

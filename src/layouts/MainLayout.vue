@@ -3,8 +3,8 @@
     <q-header class="nx-header">
       <q-toolbar style="max-width: 960px; margin: 0 auto; min-height: 56px">
         <router-link to="/" class="row items-center no-wrap" style="text-decoration: none" aria-label="Startseite">
-          <NexxupLogo :size="40" background="#12110d" />
-          <span class="nx-display q-ml-sm text-weight-bold" style="font-size: 17px; letter-spacing: 0.04em; color: var(--nx-cream)">
+          <NexxupLogo :size="40" />
+          <span class="nx-display q-ml-sm text-weight-bold" style="font-size: 17px; letter-spacing: 0.04em; color: var(--nx-text)">
             NEXX<span style="color: var(--nx-accent)">UP</span>
           </span>
         </router-link>
@@ -102,6 +102,12 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <!-- Dialoge, die von jeder Seite aus geoeffnet werden koennen -->
+    <template v-if="authStore.isAuthenticated">
+      <UserProfileDialog />
+      <FeedbackDialog />
+    </template>
   </q-layout>
 </template>
 
@@ -109,6 +115,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NexxupLogo from '@/components/NexxupLogo.vue';
+import UserProfileDialog from '@/components/UserProfileDialog.vue';
+import FeedbackDialog from '@/components/FeedbackDialog.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { useChatStore } from '@/stores/chat-store';
 import { useRealtime } from '@/composables/useRealtime';
@@ -163,8 +171,8 @@ async function onLogout() {
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: rgba(255, 90, 31, 0.14);
-  color: var(--nx-accent);
+  background: var(--nx-accent-soft);
+  color: var(--nx-accent-text);
   display: flex;
   align-items: center;
   justify-content: center;

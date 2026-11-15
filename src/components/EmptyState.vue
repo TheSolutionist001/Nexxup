@@ -25,6 +25,6 @@ defineProps<{
   height: 64px;
   border-radius: 20px;
   background: var(--nx-surface-2);
-  color: var(--nx-accent);
+  color: var(--nx-accent-text);
 }
 </style>

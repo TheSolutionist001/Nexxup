@@ -47,10 +47,19 @@ export function initPush() {
   document.head.appendChild(script);
 
   withOneSignal(async (OneSignal) => {
+    // Liegt die App in einem Unterordner (z. B. GitHub Pages), muss OneSignal
+    // wissen, wo seine Hilfsdatei (Service Worker) zu finden ist.
+    const base = import.meta.env.BASE_URL || '/';
     await OneSignal.init({
       appId: APP_ID,
       // Noetig, damit Push auf http://localhost getestet werden kann.
       allowLocalhostAsSecureOrigin: true,
+      ...(base !== '/'
+        ? {
+            serviceWorkerPath: `${base.replace(/^\//, '')}OneSignalSDKWorker.js`,
+            serviceWorkerParam: { scope: base },
+          }
+        : {}),
     });
   });
 }

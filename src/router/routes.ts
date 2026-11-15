@@ -18,6 +18,12 @@ const routes: RouteRecordRaw[] = [
   },
 
   {
+    path: '/reset-password',
+    component: () => import('@/pages/auth/ResetPasswordPage.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
@@ -31,6 +37,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'board/new', component: () => import('@/pages/board/BoardCreatePage.vue'), meta: { requiresAuth: true } },
       { path: 'messages', component: () => import('@/pages/messages/MessagesPage.vue'), meta: { requiresAuth: true } },
       { path: 'messages/:id', component: () => import('@/pages/messages/ChatPage.vue'), meta: { requiresAuth: true } },
+      // Rechtliches: ohne Anmeldung lesbar (Links auf Login/Registrierung)
+      { path: 'legal/:doc', component: () => import('@/pages/legal/LegalPage.vue') },
       { path: 'admin', component: () => import('@/pages/admin/AdminPage.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     ],
   },
