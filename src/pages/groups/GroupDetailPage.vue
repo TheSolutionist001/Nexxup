@@ -1,7 +1,28 @@
 <template>
   <q-page class="q-pa-md">
     <div style="max-width: 600px; margin: 0 auto">
-      <q-btn flat dense icon="arrow_back" label="Meine Gruppen" to="/groups" no-caps class="q-mb-sm" />
+      <div class="row items-center q-mb-sm">
+        <q-btn flat dense icon="arrow_back" label="Meine Gruppen" to="/groups" no-caps />
+        <q-space />
+        <q-btn v-if="group" flat round dense icon="more_vert" aria-label="Optionen">
+          <q-menu>
+            <q-list style="min-width: 210px">
+              <q-item v-if="isMember || isCreator" v-close-popup clickable @click="onShare">
+                <q-item-section avatar><q-icon name="ios_share" /></q-item-section>
+                <q-item-section>Einladung teilen</q-item-section>
+              </q-item>
+              <q-item v-if="isCreator" v-close-popup clickable @click="openEdit">
+                <q-item-section avatar><q-icon name="edit" /></q-item-section>
+                <q-item-section>Gruppe bearbeiten</q-item-section>
+              </q-item>
+              <q-item v-if="!isCreator" v-close-popup clickable @click="reportOpen = true">
+                <q-item-section avatar><q-icon name="flag" /></q-item-section>
+                <q-item-section>Gruppe melden</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+      </div>
 
       <div v-if="loading" class="text-center q-pa-lg">
         <q-spinner size="32px" color="primary" />
@@ -29,6 +50,7 @@
             <div class="nx-detail__emoji">{{ sport.emoji }}</div>
             <div class="nx-detail__tags">
               <span class="nx-tag">{{ sport.label }}</span>
+              <span v-if="group.skill_level && group.skill_level !== 'alle'" class="nx-tag">{{ skillLabel(group.skill_level) }}</span>
               <span v-if="group.is_public_event" class="nx-tag">Öffentlich</span>
             </div>
           </div>
@@ -41,8 +63,8 @@
             <div class="column q-gutter-xs q-mt-md">
               <div class="row items-center no-wrap">
                 <q-icon name="event" size="18px" class="text-primary q-mr-sm" />
-                <span v-if="group.next_meetup_at">
-                  {{ formatMeetup(group.next_meetup_at) }}
+                <span v-if="group.next_meetup_at" :class="{ 'text-grey': !isUpcoming(group.next_meetup_at) }">
+                  <template v-if="!isUpcoming(group.next_meetup_at)">Vorbei: </template>{{ formatMeetup(group.next_meetup_at) }}
                   <span v-if="repeatLabel" class="text-grey"> · {{ repeatLabel }}</span>
                 </span>
                 <span v-else class="text-grey">Kein Termin eingetragen</span>
@@ -52,6 +74,14 @@
                   :label="group.next_meetup_at ? 'Ändern' : 'Termin festlegen'"
                   @click="openMeetupDialog"
                 />
+                <q-btn
+                  v-if="(isMember || isCreator) && group.next_meetup_at && isUpcoming(group.next_meetup_at)"
+                  flat dense round size="sm" icon="event_available" color="primary" class="q-ml-xs"
+                  aria-label="In den Kalender"
+                  @click="onCalendar"
+                >
+                  <q-tooltip>In meinen Kalender übernehmen</q-tooltip>
+                </q-btn>
               </div>
               <div v-if="group.city" class="row items-center no-wrap">
                 <q-icon name="place" size="18px" class="text-primary q-mr-sm" />{{ group.city }}
@@ -111,13 +141,14 @@
           <div class="row items-center no-wrap">
             <div class="col ellipsis text-caption text-grey">{{ inviteLink }}</div>
             <q-btn flat dense icon="content_copy" @click="copyInvite" aria-label="Link kopieren" />
+            <q-btn flat dense icon="ios_share" color="primary" @click="onShare" aria-label="Einladung teilen" />
           </div>
         </q-card>
 
         <!-- Mitglieder -->
         <div class="text-subtitle2 q-mt-md q-mb-xs">Aktive Mitglieder</div>
         <q-list bordered separator class="rounded-borders">
-          <q-item v-for="m in activeMembers" :key="m.id">
+          <q-item v-for="m in activeMembers" :key="m.id" clickable @click="ui.showProfile(m.user_id)">
             <q-item-section avatar>
               <q-avatar color="primary" size="32px">
                 {{ (m.first_name?.[0] ?? '?').toUpperCase() }}
@@ -129,6 +160,11 @@
             </q-item-section>
             <q-item-section side>
               <q-badge v-if="m.user_id === group.created_by" color="primary" label="Ersteller" />
+              <q-btn
+                v-else-if="isCreator"
+                flat dense round size="sm" icon="person_remove" color="grey" aria-label="Mitglied entfernen"
+                @click.stop="onRemoveMember(m)"
+              />
             </q-item-section>
           </q-item>
         </q-list>
@@ -136,9 +172,9 @@
         <template v-if="waitlistMembers.length > 0">
           <div class="text-subtitle2 q-mt-md q-mb-xs">Warteliste</div>
           <q-list bordered separator class="rounded-borders">
-            <q-item v-for="m in waitlistMembers" :key="m.id">
+            <q-item v-for="m in waitlistMembers" :key="m.id" clickable @click="ui.showProfile(m.user_id)">
               <q-item-section avatar>
-                <q-avatar color="grey-7" text-color="white" size="32px">
+                <q-avatar class="nx-btn-soft" size="32px">
                   {{ (m.first_name?.[0] ?? '?').toUpperCase() }}
                 </q-avatar>
               </q-item-section>
@@ -190,6 +226,34 @@
       </template>
     </div>
 
+    <ReportDialog v-model="reportOpen" title="Gruppe melden" @submit="onReport" />
+
+    <!-- Gruppe bearbeiten (nur Ersteller) -->
+    <q-dialog v-model="editOpen">
+      <q-card style="width: 100%; max-width: 440px">
+        <q-form @submit="onSaveEdit">
+          <q-card-section><div class="text-h6">Gruppe bearbeiten</div></q-card-section>
+          <q-card-section class="q-gutter-md q-pt-none">
+            <SportPicker v-model="edit.sport" />
+            <q-input v-model="edit.name" label="Name" maxlength="60" :rules="[(v: string) => !!v.trim() || 'Bitte einen Namen eingeben']" />
+            <q-input v-model="edit.description" label="Beschreibung" type="textarea" autogrow maxlength="1000" />
+            <q-input
+              v-model.number="edit.max_members"
+              label="Maximale Teilnehmerzahl"
+              type="number"
+              :hint="`Aktuell ${activeMembers.length} aktiv – kleiner geht nicht. Bei mehr Plätzen rücken Wartende automatisch nach.`"
+              :rules="[(v: number) => (v && v >= Math.max(1, activeMembers.length)) || `Mindestens ${Math.max(1, activeMembers.length)}`]"
+            />
+            <q-select v-model="edit.skill_level" :options="skillLevels" emit-value map-options label="Niveau" />
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn v-close-popup flat no-caps label="Abbrechen" />
+            <q-btn type="submit" unelevated no-caps color="primary" label="Speichern" :loading="savingEdit" />
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="meetupOpen">
       <q-card style="width: 100%; max-width: 380px">
         <q-card-section>
@@ -237,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useGroupsStore } from '@/stores/groups-store';
@@ -249,10 +313,18 @@ import PlaceSelect from '@/components/PlaceSelect.vue';
 import ChatPanel from '@/components/ChatPanel.vue';
 import GroupPolls from '@/components/GroupPolls.vue';
 import MeetupRsvp from '@/components/MeetupRsvp.vue';
+import ReportDialog from '@/components/ReportDialog.vue';
+import SportPicker from '@/components/SportPicker.vue';
+import { useModerationStore } from '@/stores/moderation-store';
+import { useUiStore } from '@/stores/ui-store';
+import { friendlyError } from '@/utils/errors';
+import { downloadIcs } from '@/utils/ics';
+import { shareOrCopy } from '@/utils/share';
+import type { ReportReason } from '@/types/report';
 import { repeatOptions } from '@/data/repeat';
 import type { Place } from '@/utils/geocode';
 import { notifyError, notifySuccess } from '@/utils/notify';
-import { getSport, sportGradient } from '@/data/sports';
+import { getSport, skillLabel, skillLevels, sportGradient } from '@/data/sports';
 import { formatMeetup, formatRepeat, isUpcoming } from '@/utils/format';
 import type { Group, GroupMemberWithName } from '@/types/group';
 
@@ -261,6 +333,8 @@ const router = useRouter();
 const $q = useQuasar();
 const groupsStore = useGroupsStore();
 const authStore = useAuthStore();
+const moderationStore = useModerationStore();
+const ui = useUiStore();
 
 const groupId = route.params.id as string;
 const group = ref<Group | null>(null);
@@ -401,6 +475,95 @@ useRealtime('group_members', `group_id=eq.${groupId}`, () => {
 useRealtime('group_meetup_places', `group_id=eq.${groupId}`, () => {
   void load(true);
 });
+
+// Einladung ueber das Teilen-Menue des Handys (sonst Link kopieren)
+async function onShare() {
+  const result = await shareOrCopy({
+    title: group.value?.name ?? 'Nexxup',
+    text: `Mach mit bei „${group.value?.name ?? 'meiner Gruppe'}“ auf Nexxup:`,
+    url: inviteLink.value,
+  });
+  if (result === 'copied') notifySuccess('Einladelink kopiert');
+  else if (result === 'failed') notifyError('Teilen nicht möglich. Bitte den Link von Hand kopieren.');
+}
+
+// Termin als Kalender-Datei (funktioniert mit Apple-, Google- und Outlook-Kalender)
+function onCalendar() {
+  if (!group.value?.next_meetup_at) return;
+  downloadIcs(
+    {
+      uid: `${groupId}-${group.value.next_meetup_at}`,
+      title: `${sport.value.label}: ${group.value.name}`,
+      start: new Date(group.value.next_meetup_at),
+      location: meetupPlace.value ? [meetupPlace.value.name, meetupPlace.value.address].filter(Boolean).join(', ') : group.value.city,
+      description: `Nexxup-Gruppe „${group.value.name}“ – ${inviteLink.value}`,
+      repeatWeeks: group.value.meetup_repeat_weeks ?? null,
+    },
+    'nexxup-termin.ics',
+  );
+}
+
+// Gruppe melden (fuer Nicht-Ersteller)
+const reportOpen = ref(false);
+async function onReport(reason: ReportReason) {
+  try {
+    await moderationStore.report('group', groupId, reason);
+    notifySuccess('Danke, die Meldung ist eingegangen.');
+  } catch {
+    notifyError('Melden fehlgeschlagen. Evtl. schon gemeldet?');
+  } finally {
+    reportOpen.value = false;
+  }
+}
+
+// Gruppe bearbeiten (nur Ersteller)
+const editOpen = ref(false);
+const savingEdit = ref(false);
+const edit = reactive({ name: '', description: '', max_members: 10, skill_level: 'alle', sport: 'sonstiges' });
+function openEdit() {
+  if (!group.value) return;
+  edit.name = group.value.name;
+  edit.description = group.value.description ?? '';
+  edit.max_members = group.value.max_members;
+  edit.skill_level = group.value.skill_level ?? 'alle';
+  edit.sport = group.value.sport;
+  editOpen.value = true;
+}
+async function onSaveEdit() {
+  savingEdit.value = true;
+  try {
+    await groupsStore.updateGroup(groupId, {
+      name: edit.name.trim(),
+      description: edit.description.trim() || null,
+      max_members: edit.max_members,
+      skill_level: edit.skill_level,
+      sport: edit.sport,
+    });
+    editOpen.value = false;
+    notifySuccess('Gruppe gespeichert');
+    await load(true);
+  } catch (e) {
+    notifyError(friendlyError(e, 'Die Gruppe konnte nicht gespeichert werden.'));
+  } finally {
+    savingEdit.value = false;
+  }
+}
+
+function onRemoveMember(m: GroupMemberWithName) {
+  $q.dialog({
+    title: 'Mitglied entfernen',
+    message: `${m.first_name ?? 'Diese Person'} aus der Gruppe entfernen? Wer auf der Warteliste steht, rückt automatisch nach.`,
+    cancel: true,
+    ok: { label: 'Entfernen', color: 'negative', flat: true },
+  }).onOk(async () => {
+    try {
+      await groupsStore.removeMember(groupId, m.user_id);
+      await load(true);
+    } catch {
+      notifyError('Das Mitglied konnte nicht entfernt werden.');
+    }
+  });
+}
 
 async function copyInvite() {
   try {

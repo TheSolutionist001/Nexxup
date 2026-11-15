@@ -21,8 +21,29 @@
           class="nx-msg"
           :class="m.sender_id === myId ? 'nx-msg--mine' : 'nx-msg--theirs'"
         >
-          <div v-if="showNames && m.sender_id !== myId" class="nx-msg__name">{{ m.sender_first_name ?? 'Unbekannt' }}</div>
-          <div class="nx-msg__bubble">{{ m.body }}</div>
+          <div
+            v-if="showNames && m.sender_id !== myId"
+            class="nx-msg__name cursor-pointer"
+            @click="ui.showProfile(m.sender_id)"
+          >
+            {{ m.sender_first_name ?? 'Unbekannt' }}
+          </div>
+          <div class="nx-msg__bubble" :class="{ 'cursor-pointer': m.sender_id !== myId }">
+            {{ m.body }}
+            <!-- Fremde Nachricht antippen: melden (Pflicht fuer die App-Stores) -->
+            <q-menu v-if="m.sender_id !== myId" touch-position>
+              <q-list style="min-width: 190px">
+                <q-item v-close-popup clickable @click="ui.showProfile(m.sender_id)">
+                  <q-item-section avatar><q-icon name="person" /></q-item-section>
+                  <q-item-section>Profil ansehen</q-item-section>
+                </q-item>
+                <q-item v-close-popup clickable @click="openReport(m.id)">
+                  <q-item-section avatar><q-icon name="flag" /></q-item-section>
+                  <q-item-section>Nachricht melden</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </div>
           <div class="nx-msg__time">{{ formatChatTime(m.created_at) }}</div>
         </div>
       </template>
@@ -53,6 +74,8 @@
       />
     </div>
     <div v-else-if="disabledText" class="nx-chat__disabled">{{ disabledText }}</div>
+
+    <ReportDialog v-model="reportOpen" title="Nachricht melden" @submit="onReport" />
   </div>
 </template>
 
@@ -61,8 +84,13 @@ import { nextTick, onMounted, ref } from 'vue';
 import { useChatStore } from '@/stores/chat-store';
 import { useRealtime } from '@/composables/useRealtime';
 import { formatChatTime } from '@/utils/format';
-import { notifyError } from '@/utils/notify';
+import ReportDialog from '@/components/ReportDialog.vue';
+import { useModerationStore } from '@/stores/moderation-store';
+import { useUiStore } from '@/stores/ui-store';
+import { friendlyError } from '@/utils/errors';
+import { notifyError, notifySuccess } from '@/utils/notify';
 import type { ChatMessageView } from '@/types/chat';
+import type { ReportReason } from '@/types/report';
 
 const props = withDefaults(
   defineProps<{
@@ -79,6 +107,28 @@ const props = withDefaults(
 );
 
 const chatStore = useChatStore();
+const moderationStore = useModerationStore();
+const ui = useUiStore();
+
+// Nachricht melden: danach ist sie fuer mich ausgeblendet, die Moderation prueft.
+const reportOpen = ref(false);
+const reportMessageId = ref<string | null>(null);
+function openReport(id: string) {
+  reportMessageId.value = id;
+  reportOpen.value = true;
+}
+async function onReport(reason: ReportReason) {
+  if (!reportMessageId.value) return;
+  try {
+    await moderationStore.report('message', reportMessageId.value, reason);
+    notifySuccess('Danke, die Meldung ist eingegangen.');
+    await load(true);
+  } catch {
+    notifyError('Melden fehlgeschlagen. Evtl. schon gemeldet?');
+  } finally {
+    reportOpen.value = false;
+  }
+}
 const target = props.threadId ? { threadId: props.threadId } : { groupId: props.groupId ?? '' };
 
 const messages = ref<ChatMessageView[]>([]);
@@ -115,8 +165,8 @@ async function send() {
     await chatStore.sendMessage(target, text);
     draft.value = '';
     await load(true);
-  } catch {
-    notifyError('Die Nachricht konnte nicht gesendet werden.');
+  } catch (e) {
+    notifyError(friendlyError(e, 'Die Nachricht konnte nicht gesendet werden.'));
   } finally {
     sending.value = false;
   }
@@ -141,7 +191,7 @@ defineExpose({ reload: () => load(true) });
   min-height: 260px;
   border-radius: 20px;
   background: var(--nx-surface);
-  border: 1px solid rgba(243, 239, 232, 0.08);
+  border: 1px solid var(--nx-border);
   overflow: hidden;
 }
 .nx-chat__list {
@@ -184,7 +234,7 @@ defineExpose({ reload: () => load(true) });
 }
 .nx-msg--theirs .nx-msg__bubble {
   background: var(--nx-surface-2);
-  color: var(--nx-cream);
+  color: var(--nx-text);
   border-bottom-left-radius: 6px;
 }
 .nx-msg__time {
@@ -197,13 +247,13 @@ defineExpose({ reload: () => load(true) });
   align-items: flex-end;
   gap: 8px;
   padding: 10px;
-  border-top: 1px solid rgba(243, 239, 232, 0.08);
+  border-top: 1px solid var(--nx-border);
 }
 .nx-chat__disabled {
   padding: 12px;
   text-align: center;
   font-size: 13px;
   color: var(--nx-muted);
-  border-top: 1px solid rgba(243, 239, 232, 0.08);
+  border-top: 1px solid var(--nx-border);
 }
 </style>

@@ -8,8 +8,8 @@
         rounded
         icon="check"
         label="Bin dabei"
-        :color="myStatus === 'yes' ? 'primary' : 'dark'"
-        :text-color="myStatus === 'yes' ? 'dark' : 'white'"
+        :color="myStatus === 'yes' ? 'primary' : undefined"
+        :class="{ 'nx-btn-soft': myStatus !== 'yes' }"
         :loading="saving === 'yes'"
         @click="toggle('yes')"
       />
@@ -19,7 +19,7 @@
         rounded
         icon="close"
         label="Diesmal nicht"
-        :color="myStatus === 'no' ? 'grey-8' : 'dark'"
+        :class="myStatus === 'no' ? 'nx-btn-no' : 'nx-btn-soft'"
         :loading="saving === 'no'"
         @click="toggle('no')"
       />
@@ -77,3 +77,10 @@ useRealtime('meetup_rsvps', `group_id=eq.${props.groupId}`, () => void load());
 watch(() => props.meetupAt, load);
 onMounted(load);
 </script>
+
+<style scoped>
+.nx-btn-no {
+  background: var(--nx-text) !important;
+  color: var(--nx-bg) !important;
+}
+</style>

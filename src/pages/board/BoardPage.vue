@@ -7,7 +7,7 @@
           unelevated
           no-caps
           rounded
-          color="dark"
+          class="nx-btn-soft"
           icon="place"
           :label="`${radius} km`"
           dropdown-icon="expand_more"
@@ -70,6 +70,9 @@
             <q-btn v-else flat dense round icon="more_horiz" color="grey" size="sm" aria-label="Optionen">
               <q-menu>
                 <q-list style="min-width: 160px">
+                  <q-item v-close-popup clickable @click="ui.showProfile(post.author_id)">
+                    <q-item-section>Profil ansehen</q-item-section>
+                  </q-item>
                   <q-item v-close-popup clickable @click="openReport('post', post)">
                     <q-item-section>Gesuch melden</q-item-section>
                   </q-item>
@@ -124,6 +127,7 @@ import { useRealtime } from '@/composables/useRealtime';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import { useStartChat } from '@/composables/useStartChat';
 import { useChatStore } from '@/stores/chat-store';
+import { useUiStore } from '@/stores/ui-store';
 import type { BoardFeedItem } from '@/types/board';
 import type { ReportReason } from '@/types/report';
 
@@ -132,6 +136,7 @@ const boardStore = useBoardStore();
 const authStore = useAuthStore();
 const moderationStore = useModerationStore();
 const chatStore = useChatStore();
+const ui = useUiStore();
 const { replyTo, starting } = useStartChat();
 
 function onBlock(post: BoardFeedItem) {

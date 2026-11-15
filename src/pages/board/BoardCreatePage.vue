@@ -60,6 +60,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
 import SportPicker from '@/components/SportPicker.vue';
+import { friendlyError } from '@/utils/errors';
 import { useBoardStore } from '@/stores/board-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
@@ -122,8 +123,8 @@ async function onSubmit() {
       validDays.value,
     );
     await router.push('/board');
-  } catch {
-    errorMessage.value = 'Das Gesuch konnte nicht veröffentlicht werden. Bitte erneut versuchen.';
+  } catch (e) {
+    errorMessage.value = friendlyError(e, 'Das Gesuch konnte nicht veröffentlicht werden. Bitte erneut versuchen.');
   } finally {
     loading.value = false;
   }

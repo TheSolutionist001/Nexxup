@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-center column q-pa-md" style="min-height: 100vh">
-    <NexxupLogo :size="96" wordmark background="#12110d" class="q-mb-xl" />
+    <NexxupLogo :size="96" wordmark class="q-mb-xl" />
     <q-card v-if="!registered" class="q-pa-lg" style="width: 100%; max-width: 360px">
       <q-card-section>
         <div class="text-h6">Konto erstellen</div>
@@ -12,7 +12,9 @@
           <q-input
             v-model="firstName"
             label="Vorname"
-            :rules="[(val: string) => !!val || 'Bitte Vorname eingeben']"
+            maxlength="40"
+            autocomplete="given-name"
+            :rules="[(val: string) => !!val.trim() || 'Bitte Vorname eingeben']"
           />
           <q-input
             v-model="email"
@@ -24,7 +26,8 @@
             v-model="password"
             type="password"
             label="Passwort"
-            :rules="[(val: string) => (!!val && val.length >= 6) || 'Mindestens 6 Zeichen']"
+            autocomplete="new-password"
+            :rules="[(val: string) => (!!val && val.length >= 8) || 'Mindestens 8 Zeichen']"
           />
           <q-select
             v-model="gender"
@@ -36,6 +39,15 @@
           <CitySelect v-model="city" @select="onCity" />
           <div v-if="cityError" class="text-negative text-caption">{{ cityError }}</div>
 
+          <q-checkbox v-model="accepted" dense class="text-caption" style="align-items: flex-start">
+            <span>
+              Ich bin mindestens {{ MIN_AGE }} Jahre alt und akzeptiere die
+              <!-- In neuem Tab oeffnen, damit die Eingaben im Formular nicht verloren gehen -->
+              <a href="#/legal/regeln" target="_blank" rel="noopener" @click.stop>Community-Regeln</a> und die
+              <a href="#/legal/datenschutz" target="_blank" rel="noopener" @click.stop>Datenschutzerklärung</a>.
+            </span>
+          </q-checkbox>
+
           <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
 
           <q-btn
@@ -45,13 +57,14 @@
             class="full-width"
             unelevated
             :loading="loading"
+            :disable="!accepted"
           />
         </q-form>
       </q-card-section>
 
       <q-card-section class="text-center text-caption">
         Schon ein Konto?
-        <router-link to="/login" class="text-primary">Einloggen</router-link>
+        <router-link :to="{ path: '/login', query: route.query }" class="text-primary">Einloggen</router-link>
       </q-card-section>
     </q-card>
 
@@ -72,7 +85,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { MIN_AGE } from '@/data/legal';
 import CitySelect from '@/components/CitySelect.vue';
 import NexxupLogo from '@/components/NexxupLogo.vue';
 import { useAuthStore } from '@/stores/auth-store';
@@ -81,6 +95,8 @@ import type { City } from '@/utils/geocode';
 import { getAuthErrorMessage } from '@/utils/auth-errors';
 
 const router = useRouter();
+const route = useRoute();
+const accepted = ref(false);
 const authStore = useAuthStore();
 
 const firstName = ref('');
@@ -111,9 +127,11 @@ async function onSubmit() {
     const { needsEmailConfirmation } = await authStore.signUp({
       email: email.value,
       password: password.value,
-      firstName: firstName.value,
+      firstName: firstName.value.trim(),
       gender: gender.value,
       city: selectedCity.value.name,
+      lat: selectedCity.value.lat,
+      lng: selectedCity.value.lng,
     });
     if (needsEmailConfirmation) {
       // E-Mail-Bestaetigung ist aktiv: Hinweis anzeigen, kein Auto-Login.
@@ -121,7 +139,8 @@ async function onSubmit() {
     } else {
       // Bestaetigung aus: Nutzer ist sofort eingeloggt -> Standort setzen, weiter.
       await authStore.setLocation(selectedCity.value.lat, selectedCity.value.lng);
-      await router.push('/');
+      const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
+      await router.push(redirect.startsWith('/') ? redirect : '/');
     }
   } catch (error) {
     errorMessage.value = getAuthErrorMessage(error);

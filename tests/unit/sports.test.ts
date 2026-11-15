@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { getSport, sports } from '@/data/sports';
+import { getSport, skillLevels, sports } from '@/data/sports';
 
 describe('sports', () => {
   it('hat eindeutige Schlüssel', () => {
@@ -13,11 +13,18 @@ describe('sports', () => {
     expect(getSport(null).key).toBe('sonstiges');
   });
 
-  it('stimmt exakt mit der Datenbank-Regel (Migration 0009) überein', () => {
-    const sql = readFileSync('supabase/migrations/0009_sport_meetups.sql', 'utf8');
+  it('stimmt exakt mit der Datenbank-Regel (Migration 0017) überein', () => {
+    const sql = readFileSync('supabase/migrations/0017_launch_readiness.sql', 'utf8');
     const match = sql.match(/groups_sport_check check \(sport in \(([^)]*)\)/);
     expect(match).not.toBeNull();
     const dbKeys = [...(match?.[1] ?? '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
     expect(sports.map((s) => s.key).sort()).toEqual(dbKeys);
+  });
+
+  it('Niveaus stimmen mit der Datenbank-Regel überein', () => {
+    const sql = readFileSync('supabase/migrations/0017_launch_readiness.sql', 'utf8');
+    const match = sql.match(/skill_level in \(([^)]*)\)/);
+    const dbKeys = [...(match?.[1] ?? '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
+    expect(skillLevels.map((s) => s.value).sort()).toEqual(dbKeys);
   });
 });

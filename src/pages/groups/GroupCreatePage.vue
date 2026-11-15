@@ -16,6 +16,7 @@
           <q-input
             v-model="name"
             label="Name"
+            maxlength="60"
             placeholder="z. B. Feierabend-Kick"
             :rules="[(val: string) => !!val.trim() || 'Bitte einen Namen eingeben']"
           />
@@ -42,6 +43,8 @@
             label="Wiederholung"
             hint="Bei Wiederholung springt der Termin danach automatisch weiter"
           />
+
+          <q-select v-model="skillLevel" :options="skillLevels" emit-value map-options label="Niveau" />
 
           <PlaceSelect v-model="place" label="Treffpunkt (optional)" :near="myLocation" />
           <div class="text-caption text-grey" style="margin-top: 4px">
@@ -79,6 +82,8 @@ import { useAuthStore } from '@/stores/auth-store';
 import { notifyError } from '@/utils/notify';
 import type { City, Place } from '@/utils/geocode';
 import { repeatOptions } from '@/data/repeat';
+import { skillLevels } from '@/data/sports';
+import { friendlyError } from '@/utils/errors';
 
 const router = useRouter();
 const groupsStore = useGroupsStore();
@@ -90,6 +95,7 @@ const description = ref('');
 const maxMembers = ref(10);
 const meetupAt = ref('');
 const repeatWeeks = ref<number | null>(null);
+const skillLevel = ref('alle');
 const city = ref<string | null>(null);
 const selectedCity = ref<City | null>(null);
 const place = ref<Place | null>(null);
@@ -100,6 +106,7 @@ const errorMessage = ref('');
 
 // Stadt aus dem Profil vorbelegen (Name + gespeicherte Stadt-Koordinaten).
 onMounted(async () => {
+  city.value = authStore.profile?.city ?? null;
   try {
     myLocation.value = await authStore.fetchMyLocation();
     const profileCity = authStore.profile?.city;
@@ -120,6 +127,12 @@ async function onSubmit() {
   loading.value = true;
   errorMessage.value = '';
   try {
+    // Stadt steht (aus dem Profil) im Feld, die Koordinaten sind aber noch
+    // nicht geladen (sehr schnelles Absenden) -> jetzt nachholen.
+    if (!selectedCity.value && city.value && city.value === authStore.profile?.city) {
+      const loc = myLocation.value ?? (await authStore.fetchMyLocation().catch(() => null));
+      if (loc) selectedCity.value = { name: city.value, ...loc };
+    }
     const id = await groupsStore.createGroup({
       name: name.value.trim(),
       description: description.value.trim(),
@@ -131,6 +144,7 @@ async function onSubmit() {
       lat: selectedCity.value?.lat ?? null,
       lng: selectedCity.value?.lng ?? null,
       repeatWeeks: meetupAt.value ? repeatWeeks.value : null,
+      skillLevel: skillLevel.value,
     });
     if (isPublic.value) await groupsStore.togglePublic(id, true);
     if (place.value) {
@@ -141,8 +155,8 @@ async function onSubmit() {
       }
     }
     await router.push(`/groups/${id}`);
-  } catch {
-    errorMessage.value = 'Die Gruppe konnte nicht erstellt werden. Bitte versuche es erneut.';
+  } catch (e) {
+    errorMessage.value = friendlyError(e, 'Die Gruppe konnte nicht erstellt werden. Bitte versuche es erneut.');
   } finally {
     loading.value = false;
   }

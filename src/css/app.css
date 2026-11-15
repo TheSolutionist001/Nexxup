@@ -1,28 +1,99 @@
-/* Nexxup – globales Design (Dark Mode)
+/* Nexxup – globales Design (heller + dunkler Modus)
    Farben und Schriften aus dem Logo (Claude Design, Variante 6a).
-   Schriften liegen in der App selbst (@fontsource), es wird nichts von Google geladen. */
+   Schriften liegen in der App selbst (@fontsource), es wird nichts von Google geladen.
+
+   Farb-Tokens: Feste Markenfarben (--nx-accent, --nx-ink, --nx-cream) gelten
+   immer. Alles andere (--nx-bg, --nx-surface, --nx-text ...) wechselt mit dem
+   Modus. Quasar setzt dafuer die Klassen body--dark / body--light.
+   Regel: In Komponenten nie feste Hintergrund-/Textfarben verwenden, sondern
+   diese Tokens - dann funktionieren beide Modi automatisch. */
 
 @import '@fontsource-variable/archivo/index.css';
 @import '@fontsource-variable/unbounded/index.css';
 
 :root {
+  /* Marke (fest) */
   --nx-accent: #ff5a1f;
   --nx-ink: #16140f;
   --nx-cream: #f3efe8;
+  --nx-radius: 16px;
+
+  /* Dunkel (Standard, auch bevor Quasar die body-Klasse gesetzt hat) */
   --nx-bg: #12110d;
   --nx-surface: #1e1c17;
   --nx-surface-2: #29261f;
-  --nx-border: rgba(243, 239, 232, 0.09);
+  --nx-text: #f3efe8;
   --nx-muted: #a8a196;
-  --nx-radius: 16px;
+  --nx-border: rgba(243, 239, 232, 0.09);
+  --nx-glass: rgba(18, 17, 13, 0.78);
+  --nx-accent-text: #ff6a33;
+  --nx-accent-soft: rgba(255, 90, 31, 0.14);
+  --nx-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --nx-note-warning: #ffc867;
+  --nx-note-negative: #ff9c9c;
+  --nx-note-info: #ffa47f;
+  color-scheme: dark;
+}
+
+body.body--light {
+  --nx-bg: #f6f2eb;
+  --nx-surface: #ffffff;
+  --nx-surface-2: #ece6db;
+  --nx-text: #16140f;
+  --nx-muted: #6b655b;
+  --nx-border: rgba(22, 20, 15, 0.1);
+  --nx-glass: rgba(246, 242, 235, 0.82);
+  /* Orange als TEXT auf hellem Grund braucht mehr Kontrast */
+  --nx-accent-text: #c93a06;
+  --nx-accent-soft: rgba(255, 90, 31, 0.13);
+  --nx-shadow: 0 8px 24px rgba(22, 20, 15, 0.12);
+  --nx-note-warning: #8a5a00;
+  --nx-note-negative: #b3261e;
+  --nx-note-info: #b13405;
+  color-scheme: light;
 }
 
 body {
   background: var(--nx-bg);
-  color: var(--nx-cream);
+  color: var(--nx-text);
   font-family: 'Archivo Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+.q-layout,
+.q-page-container {
+  background: var(--nx-bg);
+}
+
+/* Orange als Textfarbe (Links, flache Knoepfe) mit genug Kontrast in beiden Modi */
+.text-primary {
+  color: var(--nx-accent-text) !important;
+}
+a {
+  color: var(--nx-accent-text);
+}
+
+/* Eingabefelder und Auswahllisten folgen den Tokens */
+.q-field--outlined .q-field__control {
+  border-radius: 14px;
+}
+.q-item {
+  color: var(--nx-text);
+}
+.q-item__label--caption {
+  color: var(--nx-muted);
+}
+
+/* Neutraler Knopf (ersetzt color="dark", funktioniert in beiden Modi) */
+.nx-btn-soft {
+  background: var(--nx-surface-2) !important;
+  color: var(--nx-text) !important;
+  border: 1px solid var(--nx-border);
+}
+/* In Dialogen/Menues (gleiche Flaechenfarbe) eine Stufe absetzen */
+.q-dialog .nx-btn-soft,
+.q-menu .nx-btn-soft {
+  background: var(--nx-surface) !important;
 }
 
 /* Ueberschriften in der Logo-Schrift */
@@ -63,6 +134,7 @@ body {
 .q-list--separator > .q-virtual-scroll__content > .q-item-type + .q-item-type {
   border-top-color: var(--nx-border);
 }
+.q-separator,
 .q-separator--dark {
   background: var(--nx-border);
 }
@@ -105,24 +177,24 @@ body {
   text-decoration: underline;
 }
 .nx-note--warning {
-  background: rgba(255, 176, 32, 0.1);
-  border-color: rgba(255, 176, 32, 0.3);
-  color: #ffc867;
+  background: rgba(255, 176, 32, 0.12);
+  border-color: rgba(255, 176, 32, 0.35);
+  color: var(--nx-note-warning);
 }
 .nx-note--negative {
   background: rgba(255, 90, 90, 0.1);
   border-color: rgba(255, 90, 90, 0.3);
-  color: #ff9c9c;
+  color: var(--nx-note-negative);
 }
 .nx-note--info {
   background: rgba(255, 90, 31, 0.1);
   border-color: rgba(255, 90, 31, 0.3);
-  color: #ffa47f;
+  color: var(--nx-note-info);
 }
 
 /* Kopfleiste mit Milchglas-Effekt */
 .nx-header {
-  background: rgba(18, 17, 13, 0.72);
+  background: var(--nx-glass);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid var(--nx-border);
@@ -131,7 +203,7 @@ body {
 
 /* Tab-Leiste unten (Handy) */
 .nx-tabbar {
-  background: rgba(18, 17, 13, 0.85);
+  background: var(--nx-glass);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border-top: 1px solid var(--nx-border);
@@ -220,7 +292,7 @@ body {
   padding: 8px 14px;
   border-radius: 999px;
   background: var(--nx-surface-2);
-  color: var(--nx-cream);
+  color: var(--nx-text);
   border: 0;
   font: inherit;
   font-weight: 600;
@@ -265,7 +337,7 @@ body {
 }
 .nx-section a,
 .nx-section .nx-link {
-  color: var(--nx-accent);
+  color: var(--nx-accent-text);
   font-weight: 600;
   font-size: 13px;
   text-decoration: none;
@@ -298,12 +370,90 @@ body {
   text-decoration: none;
 }
 .nx-tabbar__item--active {
-  color: var(--nx-accent);
+  color: var(--nx-accent-text);
 }
 .nx-plus {
   width: 54px;
   height: 54px;
   border-radius: 18px !important;
   margin-top: -18px;
-  box-shadow: 0 8px 24px rgba(255, 90, 31, 0.45);
+  box-shadow: 0 8px 24px rgba(255, 90, 31, 0.4);
+}
+
+/* ===== Einstellungs-Listen (Profil) ===== */
+.nx-group {
+  border-radius: 20px;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+  overflow: hidden;
+}
+.nx-group .q-item {
+  min-height: 54px;
+}
+.nx-group .q-item + .q-item {
+  border-top: 1px solid var(--nx-border);
+}
+.nx-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nx-muted);
+  margin: 22px 6px 8px;
+}
+.nx-icon-tile {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--nx-accent-soft);
+  color: var(--nx-accent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Lange Texte (Rechtliches) */
+.nx-prose {
+  line-height: 1.6;
+}
+.nx-prose h2 {
+  font-family: 'Unbounded Variable', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 26px 0 8px;
+}
+.nx-prose p,
+.nx-prose ul {
+  margin: 0 0 10px;
+}
+.nx-prose ul {
+  padding-left: 20px;
+}
+
+/* Auf grossen Bildschirmen etwas Luft unter der Kopfleiste */
+@media (min-width: 1024px) {
+  .q-page {
+    padding-top: 8px;
+  }
+}
+
+/* Weniger Bewegung, wenn im System so eingestellt */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* iPhone zoomt beim Tippen in Felder mit Schrift < 16px hinein - verhindern,
+   ohne das Zoomen der Seite generell zu verbieten (Barrierefreiheit). */
+@media (pointer: coarse) {
+  .q-field__native,
+  .q-field__input,
+  .q-field__prefix,
+  .q-field__suffix {
+    font-size: 16px;
+  }
 }

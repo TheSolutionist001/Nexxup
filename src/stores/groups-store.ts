@@ -30,13 +30,13 @@ export const useGroupsStore = defineStore('groups', () => {
     });
     if (error) throw error;
     const id = data as string;
-    // Wiederholung separat setzen (Ersteller darf seine Gruppe aendern - RLS)
-    if (input.repeatWeeks && input.nextMeetupAt) {
-      const { error: repeatError } = await supabase
-        .from('groups')
-        .update({ meetup_repeat_weeks: input.repeatWeeks })
-        .eq('id', id);
-      if (repeatError) throw repeatError;
+    // Wiederholung + Niveau separat setzen (Ersteller darf seine Gruppe aendern - RLS)
+    const extra: Record<string, unknown> = {};
+    if (input.repeatWeeks && input.nextMeetupAt) extra.meetup_repeat_weeks = input.repeatWeeks;
+    if (input.skillLevel && input.skillLevel !== 'alle') extra.skill_level = input.skillLevel;
+    if (Object.keys(extra).length > 0) {
+      const { error: extraError } = await supabase.from('groups').update(extra).eq('id', id);
+      if (extraError) throw extraError;
     }
     return id;
   }
@@ -215,6 +215,22 @@ export const useGroupsStore = defineStore('groups', () => {
     return data as GroupPreview | null;
   }
 
+  // Stammdaten aendern (nur Ersteller - RLS). Wird die Gruppe groesser,
+  // ruecken Wartende automatisch nach (Trigger in der Datenbank).
+  async function updateGroup(
+    groupId: string,
+    updates: { name: string; description: string | null; max_members: number; skill_level: string; sport: string },
+  ): Promise<void> {
+    const { error } = await supabase.from('groups').update(updates).eq('id', groupId);
+    if (error) throw error;
+  }
+
+  // Mitglied entfernen (nur Ersteller - RLS). Nachruecken passiert automatisch.
+  async function removeMember(groupId: string, userId: string): Promise<void> {
+    const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId);
+    if (error) throw error;
+  }
+
   async function togglePublic(groupId: string, value: boolean): Promise<void> {
     const { error } = await supabase
       .from('groups')
@@ -245,5 +261,7 @@ export const useGroupsStore = defineStore('groups', () => {
     deleteGroup,
     getGroupPreview,
     togglePublic,
+    updateGroup,
+    removeMember,
   };
 });

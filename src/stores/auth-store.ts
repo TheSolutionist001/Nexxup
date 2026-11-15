@@ -35,6 +35,25 @@ export const useAuthStore = defineStore('auth', () => {
     if (profile.value.is_banned) {
       bannedNotice.value = true;
       await signOut();
+      return;
+    }
+    void ensureLocation();
+  }
+
+  // Wer sich mit E-Mail-Bestaetigung registriert, ist beim Absenden noch nicht
+  // angemeldet - der Standort kann dann nicht sofort gespeichert werden. Die
+  // Stadt-Koordinaten reisen deshalb in den Anmeldedaten mit und werden beim
+  // ersten Login nachgetragen (einmal pro Sitzung geprueft).
+  let locationChecked = false;
+  async function ensureLocation() {
+    if (locationChecked || !user.value) return;
+    locationChecked = true;
+    const meta = user.value.user_metadata as { city_lat?: unknown; city_lng?: unknown };
+    if (typeof meta.city_lat !== 'number' || typeof meta.city_lng !== 'number') return;
+    try {
+      if ((await fetchMyLocation()) === null) await setLocation(meta.city_lat, meta.city_lng);
+    } catch {
+      // Nicht kritisch: das Profil weist auf den fehlenden Ort hin.
     }
   }
 
@@ -69,6 +88,8 @@ export const useAuthStore = defineStore('auth', () => {
     firstName: string;
     gender: Gender;
     city: string;
+    lat: number;
+    lng: number;
   }) {
     const emailRedirectTo = `${window.location.origin}${window.location.pathname}#/login`;
     const { data, error } = await supabase.auth.signUp({
@@ -80,6 +101,11 @@ export const useAuthStore = defineStore('auth', () => {
           first_name: params.firstName,
           gender: params.gender,
           city: params.city,
+          // Stadt-Koordinaten (ungenau), siehe ensureLocation()
+          city_lat: params.lat,
+          city_lng: params.lng,
+          // Nachweis der Zustimmung (Mindestalter, Regeln, Datenschutz)
+          terms_accepted_at: new Date().toISOString(),
         },
       },
     });
@@ -100,9 +126,37 @@ export const useAuthStore = defineStore('auth', () => {
     session.value = null;
     user.value = null;
     profile.value = null;
+    locationChecked = false;
   }
 
-  async function updateOwnProfile(updates: Partial<Pick<Profile, 'first_name' | 'gender' | 'city'>>) {
+  // Schickt eine E-Mail mit Link zum Zuruecksetzen. Der Link fuehrt zurueck
+  // in die App auf die Seite "Neues Passwort".
+  async function sendPasswordReset(email: string) {
+    const redirectTo = `${window.location.origin}${window.location.pathname}#/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+  }
+
+  async function updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  }
+
+  // Loescht das Konto samt aller Daten unwiderruflich (siehe delete_my_account).
+  async function deleteAccount() {
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) throw error;
+    logoutPush();
+    // Lokale Sitzung verwerfen (das Konto gibt es serverseitig nicht mehr).
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    session.value = null;
+    user.value = null;
+    profile.value = null;
+  }
+
+  async function updateOwnProfile(
+    updates: Partial<Pick<Profile, 'first_name' | 'gender' | 'city' | 'bio' | 'sports'>>,
+  ) {
     if (!user.value) throw new Error('Nicht eingeloggt');
     const { data, error } = await supabase
       .from('profiles')
@@ -139,6 +193,9 @@ export const useAuthStore = defineStore('auth', () => {
     signUp,
     signIn,
     signOut,
+    sendPasswordReset,
+    updatePassword,
+    deleteAccount,
     fetchOwnProfile,
     updateOwnProfile,
     setLocation,
