@@ -12,6 +12,10 @@ Konten bzw. rechtliche Angaben). Reihenfolge = Priorität.
    Danach ist die App nach 1–2 Minuten erreichbar unter
    **https://thesolutionist001.github.io/i-need-you-app/**
    (jeder neue Stand auf `main` wird automatisch veröffentlicht).
+   **Repository umbenannt?** Dann ändert sich der letzte Teil der Adresse auf
+   den neuen Namen (z. B. `…github.io/nexxup/`). Einmal neu veröffentlichen:
+   GitHub → *Actions* → *Deploy* → *Run workflow*. Die Adresse unten in
+   Schritt 2 und 4 entsprechend anpassen.
 
 2. **Supabase: Adresse der App eintragen**
    Supabase → *Authentication* → *URL Configuration*:

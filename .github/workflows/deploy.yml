@@ -1,5 +1,7 @@
 # Veroeffentlicht die Web-App bei jedem Stand auf "main" automatisch auf
-# GitHub Pages:  https://thesolutionist001.github.io/i-need-you-app/
+# GitHub Pages:  https://<github-name>.github.io/<repository-name>/
+# Der Unterordner richtet sich automatisch nach dem Namen des Repositorys -
+# nach einem Umbenennen genuegt ein neuer Lauf (Actions -> Deploy -> Run workflow).
 #
 # So funktioniert es: Die App wird gebaut und das Ergebnis in den Zweig
 # "gh-pages" geschrieben. GitHub Pages liefert diesen Zweig aus
@@ -31,7 +33,7 @@ jobs:
       QCLI_SUPABASE_URL: https://chdhkkgenxskblezfbrl.supabase.co
       QCLI_SUPABASE_ANON_KEY: sb_publishable_QpPaJW2GlQSVuoZbjnEZqw_cth38CvE
       QCLI_ONESIGNAL_APP_ID: 65aedf84-8676-464d-a55f-1641a3e6b25c
-      NEXXUP_PUBLIC_PATH: /i-need-you-app/
+      NEXXUP_PUBLIC_PATH: /${{ github.event.repository.name }}/
     steps:
       - uses: actions/checkout@v4
 
