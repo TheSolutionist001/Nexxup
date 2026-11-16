@@ -100,7 +100,11 @@
     </q-dialog>
 
     <q-page-container>
-      <router-view />
+      <!-- key: Bei einem Wechsel zwischen zwei Seiten gleicher Art (Event A ->
+           Event B, Gruppe A -> Gruppe B) die Seite neu aufbauen. Ohne das
+           bliebe der alte Inhalt stehen, weil die Seiten ihre ID nur einmal
+           beim Start lesen. -->
+      <router-view :key="route.path" />
     </q-page-container>
 
     <!-- Dialoge, die von jeder Seite aus geoeffnet werden koennen -->
@@ -152,7 +156,8 @@ const desktopItems = computed(() =>
 
 const createOptions = [
   { to: '/board/new', icon: 'push_pin', title: 'Gesuch aufgeben', text: 'Spontan jemanden für eine Aktivität finden' },
-  { to: '/groups/new', icon: 'group_add', title: 'Gruppe gründen', text: 'Regelmäßige Treffen mit fester Teilnehmerzahl' },
+  { to: '/groups', icon: 'event', title: 'Event planen', text: 'In einer deiner Gruppen – wähle zuerst die Gruppe' },
+  { to: '/groups/new', icon: 'group_add', title: 'Gruppe gründen', text: 'Deine Gemeinschaft, in der ihr Events plant' },
 ];
 
 function isActive(to: string): boolean {

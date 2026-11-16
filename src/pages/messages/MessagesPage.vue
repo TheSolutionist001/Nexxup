@@ -23,7 +23,7 @@
           <q-list class="nx-list q-mb-md">
             <q-item v-for="g in groupChats" :key="g.id" clickable :to="`/groups/${g.id}?chat=1`">
               <q-item-section avatar>
-                <div class="nx-chat-avatar" :style="{ background: sportGradient(g.sport) }">{{ getSport(g.sport).emoji }}</div>
+                <div class="nx-chat-avatar text-weight-bold" :style="avatarStyle(g.id)">{{ g.name[0]?.toUpperCase() }}</div>
               </q-item-section>
               <q-item-section>
                 <q-item-label class="text-weight-bold">{{ g.name }}</q-item-label>
@@ -81,7 +81,6 @@ import { useGroupsStore } from '@/stores/groups-store';
 import { useRealtime } from '@/composables/useRealtime';
 import { formatChatTime } from '@/utils/format';
 import { avatarStyle } from '@/utils/avatar';
-import { getSport, sportGradient } from '@/data/sports';
 import type { ChatThreadSummary } from '@/types/chat';
 import type { DiscoverGroup } from '@/types/group';
 

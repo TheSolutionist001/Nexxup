@@ -139,32 +139,11 @@
           <q-btn v-if="!filtering" flat color="primary" icon="group_add" label="Erste Gruppe gründen" to="/groups/new" class="q-mt-xs" />
         </q-card>
 
-        <!-- Eigene Termine -->
+        <!-- Meine naechsten Events (aus allen Gruppen, nach meinen Einstellungen gefiltert) -->
         <template v-if="upcoming.length > 0">
-          <div class="nx-section"><div class="nx-section__title">Deine nächsten Termine</div></div>
+          <div class="nx-section"><div class="nx-section__title">Deine nächsten Events</div></div>
           <div class="column q-gutter-sm">
-            <q-card
-              v-for="g in upcoming"
-              :key="g.id"
-              v-ripple
-              class="cursor-pointer"
-              @click="router.push(`/groups/${g.id}`)"
-            >
-              <div class="row items-center no-wrap q-pa-sm" style="gap: 12px">
-                <div class="nx-day">
-                  <div class="nx-day__wd">{{ meetupDayParts(g.next_meetup_at!).weekday }}</div>
-                  <div class="nx-day__d">{{ meetupDayParts(g.next_meetup_at!).day }}</div>
-                </div>
-                <div class="col" style="min-width: 0">
-                  <div class="text-weight-bold ellipsis">{{ getSport(g.sport).emoji }} {{ g.name }}</div>
-                  <div class="text-caption text-grey">
-                    {{ formatMeetup(g.next_meetup_at!) }} ·
-                    {{ g.my_status === 'active' ? 'du bist dabei ✓' : 'Warteliste' }}
-                  </div>
-                </div>
-                <q-icon name="chevron_right" size="22px" class="text-grey" />
-              </div>
-            </q-card>
+            <EventCard v-for="e in upcoming" :key="e.id" :event="e" show-group />
           </div>
         </template>
 
@@ -194,15 +173,18 @@ import DiscoverMap from '@/components/DiscoverMap.vue';
 import type { MapItem } from '@/utils/map';
 import EmptyState from '@/components/EmptyState.vue';
 import GroupCard from '@/components/GroupCard.vue';
+import EventCard from '@/components/EventCard.vue';
 import PostCard from '@/components/PostCard.vue';
 import { useStartChat } from '@/composables/useStartChat';
 import SportChips from '@/components/SportChips.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useBoardStore } from '@/stores/board-store';
+import { useEventsStore } from '@/stores/events-store';
+import { isEventOpen } from '@/utils/events';
+import type { GroupEvent } from '@/types/event';
 import { useRealtime } from '@/composables/useRealtime';
 import { getSport } from '@/data/sports';
-import { formatMeetup, isUpcoming, meetupDayParts } from '@/utils/format';
 import { matchesSearch } from '@/utils/search';
 import type { DiscoverGroup } from '@/types/group';
 import type { BoardFeedItem } from '@/types/board';
@@ -214,9 +196,11 @@ const { replyTo, starting } = useStartChat();
 const authStore = useAuthStore();
 const groupsStore = useGroupsStore();
 const boardStore = useBoardStore();
+const eventsStore = useEventsStore();
 
 const groups = ref<DiscoverGroup[]>([]);
 const posts = ref<BoardFeedItem[]>([]);
+const myEvents = ref<GroupEvent[]>([]);
 const loading = ref(true);
 const loadError = ref(false);
 const search = ref<string | null>('');
@@ -244,23 +228,24 @@ watch(view, (v) => {
 
 const filtering = computed(() => !!search.value || !!sportFilter.value);
 
-function visible(sport: string, ...texts: (string | null)[]): boolean {
+// sport = null: Eintrag ohne Sportart (Gruppe ohne kommendes Event)
+function visible(sport: string | null, ...texts: (string | null)[]): boolean {
   if (sportFilter.value && sport !== sportFilter.value) return false;
-  return matchesSearch(search.value, [getSport(sport).label, ...texts]);
+  return matchesSearch(search.value, [sport ? getSport(sport).label : null, ...texts]);
 }
 
-// Fremde, oeffentliche Gruppen: kommende Termine zuerst.
+// Fremde, oeffentliche Gruppen in der Naehe (Events sehen erst Mitglieder -
+// der Sportart-Filter greift hier deshalb nicht).
 const nearbyGroups = computed(() =>
-  groups.value
-    .filter((g) => !g.my_status && visible(g.sport, g.name, g.description, g.city))
-    .sort((a, b) => Number(isUpcoming(b.next_meetup_at)) - Number(isUpcoming(a.next_meetup_at))),
+  groups.value.filter((g) => !g.my_status && !sportFilter.value && visible(null, g.name, g.description, g.city)),
 );
 
+// Meine naechsten Events: zuerst die, bei denen ich dabei bin oder ein Angebot habe
 const upcoming = computed(() =>
-  groups.value
-    .filter((g) => g.my_status && isUpcoming(g.next_meetup_at) && visible(g.sport, g.name, g.description))
-    .sort((a, b) => (a.next_meetup_at ?? '').localeCompare(b.next_meetup_at ?? ''))
-    .slice(0, 3),
+  myEvents.value
+    .filter((e) => isEventOpen(e) && visible(e.sport, e.title, e.description, e.group_name))
+    .sort((a, b) => Number(b.my_status === 'offered') - Number(a.my_status === 'offered'))
+    .slice(0, 5),
 );
 
 const latestPosts = computed(() =>
@@ -269,7 +254,9 @@ const latestPosts = computed(() =>
 
 // Karte: alle sichtbaren Gruppen und Gesuche mit (ungefaehrer) Position
 const mapGroups = computed(() =>
-  groups.value.filter((g) => g.lat != null && g.lng != null && visible(g.sport, g.name, g.description, g.city)),
+  groups.value.filter(
+    (g) => g.lat != null && g.lng != null && visible(g.next_event_sport, g.name, g.description, g.city),
+  ),
 );
 const mapPosts = computed(() =>
   posts.value.filter((p) => p.lat != null && p.lng != null && visible(p.sport, p.body, p.author_first_name)),
@@ -280,8 +267,8 @@ const mapItems = computed<MapItem[]>(() => [
     kind: 'group' as const,
     lat: g.lat!,
     lng: g.lng!,
-    emoji: getSport(g.sport).emoji,
-    color: getSport(g.sport).from,
+    emoji: g.next_event_sport ? getSport(g.next_event_sport).emoji : '👥',
+    color: g.next_event_sport ? getSport(g.next_event_sport).from : '#a8a196',
   })),
   ...mapPosts.value.map((p) => ({
     id: p.id,
@@ -302,12 +289,14 @@ async function load(silent = false) {
   if (!silent) loading.value = true;
   try {
     const hasCity = !!authStore.profile?.city;
-    const [g, p] = await Promise.all([
+    const [g, p, ev] = await Promise.all([
       groupsStore.discoverGroups(RADIUS_KM),
       hasCity ? boardStore.fetchFeed(RADIUS_KM) : Promise.resolve([]),
+      eventsStore.fetchMyEvents(),
     ]);
     groups.value = g;
     posts.value = p;
+    myEvents.value = ev;
     if (!myLocation.value && hasCity) {
       myLocation.value = await authStore.fetchMyLocation().catch(() => null);
     }
@@ -323,6 +312,8 @@ onMounted(() => load());
 
 useRealtime('board_posts', null, () => void load(true));
 useRealtime('groups', null, () => void load(true));
+useRealtime('group_events', null, () => void load(true));
+useRealtime('event_participants', null, () => void load(true));
 </script>
 
 <style scoped>
@@ -330,25 +321,5 @@ useRealtime('groups', null, () => void load(true));
   border-radius: 14px;
   overflow: hidden;
   background: var(--nx-surface);
-}
-.nx-day {
-  width: 52px;
-  height: 56px;
-  border-radius: 14px;
-  background: var(--nx-accent-soft);
-  text-align: center;
-  padding-top: 7px;
-  flex-shrink: 0;
-}
-.nx-day__wd {
-  color: var(--nx-accent-text);
-  font-size: 11px;
-  font-weight: 700;
-}
-.nx-day__d {
-  font-family: 'Unbounded Variable', sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.1;
 }
 </style>
