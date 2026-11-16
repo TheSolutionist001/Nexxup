@@ -77,8 +77,19 @@ export const useGroupsStore = defineStore('groups', () => {
       .eq('meetup_at', meetupAt);
     if (error) throw error;
     const rows = (data ?? []) as { user_id: string; status: RsvpStatus }[];
-    const names = await fetchFirstNames(rows.map((r) => r.user_id));
-    return rows.map((r) => ({ ...r, first_name: names.get(r.user_id) ?? null }));
+    if (rows.length === 0) return [];
+    // Name + Nutzername (gleiche Vornamen muessen unterscheidbar bleiben)
+    const { data: profiles, error: pErr } = await supabase
+      .from('public_profiles')
+      .select('id, first_name, username')
+      .in('id', rows.map((r) => r.user_id));
+    if (pErr) throw pErr;
+    const byId = new Map((profiles ?? []).map((p) => [p.id as string, p]));
+    return rows.map((r) => ({
+      ...r,
+      first_name: (byId.get(r.user_id)?.first_name as string | null | undefined) ?? null,
+      username: (byId.get(r.user_id)?.username as string | null | undefined) ?? null,
+    }));
   }
 
   async function setRsvp(groupId: string, status: RsvpStatus | null): Promise<void> {
@@ -180,7 +191,7 @@ export const useGroupsStore = defineStore('groups', () => {
     const ids = rows.map((m) => m.user_id);
     const { data: profiles } = await supabase
       .from('public_profiles')
-      .select('id, first_name, city')
+      .select('id, first_name, city, username')
       .in('id', ids);
 
     const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
@@ -188,6 +199,7 @@ export const useGroupsStore = defineStore('groups', () => {
       ...m,
       first_name: byId.get(m.user_id)?.first_name ?? null,
       city: byId.get(m.user_id)?.city ?? null,
+      username: (byId.get(m.user_id)?.username as string | null | undefined) ?? null,
     }));
   }
 
@@ -219,7 +231,14 @@ export const useGroupsStore = defineStore('groups', () => {
   // ruecken Wartende automatisch nach (Trigger in der Datenbank).
   async function updateGroup(
     groupId: string,
-    updates: { name: string; description: string | null; max_members: number; skill_level: string; sport: string },
+    updates: {
+      name: string;
+      description: string | null;
+      max_members: number;
+      skill_level: string;
+      sport: string;
+      fee_cents: number | null;
+    },
   ): Promise<void> {
     const { error } = await supabase.from('groups').update(updates).eq('id', groupId);
     if (error) throw error;
@@ -228,6 +247,23 @@ export const useGroupsStore = defineStore('groups', () => {
   // Mitglied entfernen (nur Ersteller - RLS). Nachruecken passiert automatisch.
   async function removeMember(groupId: string, userId: string): Promise<void> {
     const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId);
+    if (error) throw error;
+  }
+
+  // --- Kosten: Merkliste "wer hat bezahlt" (keine Zahlungsabwicklung) ---
+  // Der Gruppenleiter sieht alle Eintraege, Mitglieder nur den eigenen (RLS).
+  async function fetchPaidUserIds(groupId: string, meetupAt: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('meetup_payments')
+      .select('user_id')
+      .eq('group_id', groupId)
+      .eq('meetup_at', meetupAt);
+    if (error) throw error;
+    return (data ?? []).map((r) => r.user_id as string);
+  }
+
+  async function setPayment(groupId: string, userId: string, paid: boolean): Promise<void> {
+    const { error } = await supabase.rpc('set_payment', { p_group_id: groupId, p_user_id: userId, p_paid: paid });
     if (error) throw error;
   }
 
@@ -263,5 +299,7 @@ export const useGroupsStore = defineStore('groups', () => {
     togglePublic,
     updateGroup,
     removeMember,
+    fetchPaidUserIds,
+    setPayment,
   };
 });

@@ -47,7 +47,7 @@
         <q-list v-else class="nx-list">
           <q-item v-for="t in threads" :key="t.id" clickable :to="`/messages/${t.id}`">
             <q-item-section avatar>
-              <q-avatar color="primary" text-color="dark" class="text-weight-bold">
+              <q-avatar class="text-weight-bold" :style="avatarStyle(t.other_id)">
                 {{ (t.other_first_name?.[0] ?? '?').toUpperCase() }}
               </q-avatar>
             </q-item-section>
@@ -80,6 +80,7 @@ import { useChatStore } from '@/stores/chat-store';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useRealtime } from '@/composables/useRealtime';
 import { formatChatTime } from '@/utils/format';
+import { avatarStyle } from '@/utils/avatar';
 import { getSport, sportGradient } from '@/data/sports';
 import type { ChatThreadSummary } from '@/types/chat';
 import type { DiscoverGroup } from '@/types/group';

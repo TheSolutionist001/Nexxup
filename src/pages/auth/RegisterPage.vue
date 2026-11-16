@@ -29,6 +29,14 @@
             autocomplete="new-password"
             :rules="[(val: string) => (!!val && val.length >= 8) || 'Mindestens 8 Zeichen']"
           />
+          <q-input
+            v-model="password2"
+            type="password"
+            label="Passwort wiederholen"
+            autocomplete="new-password"
+            lazy-rules
+            :rules="[(val: string) => val === password || 'Die Passwörter stimmen nicht überein']"
+          />
           <q-select
             v-model="gender"
             :options="genderOptions"
@@ -102,6 +110,7 @@ const authStore = useAuthStore();
 const firstName = ref('');
 const email = ref('');
 const password = ref('');
+const password2 = ref('');
 const gender = ref<Gender>('keine_angabe');
 const city = ref<string | null>(null);
 const selectedCity = ref<City | null>(null);

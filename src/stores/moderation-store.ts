@@ -1,7 +1,15 @@
 import { defineStore } from 'pinia';
 import { supabase } from '@/boot/supabase';
 import { useAuthStore } from '@/stores/auth-store';
-import type { AdminFeedback, AdminReport, ReportKind, ReportReason } from '@/types/report';
+import type {
+  AdminFeedback,
+  AdminGroup,
+  AdminOverview,
+  AdminReport,
+  AdminUser,
+  ReportKind,
+  ReportReason,
+} from '@/types/report';
 
 const targetColumn: Record<ReportKind, string> = {
   post: 'reported_post_id',
@@ -45,6 +53,24 @@ export const useModerationStore = defineStore('moderation', () => {
     return (data ?? []) as AdminFeedback[];
   }
 
+  async function overview(): Promise<AdminOverview> {
+    const { data, error } = await supabase.rpc('admin_overview');
+    if (error) throw error;
+    return data as AdminOverview;
+  }
+
+  async function listUsers(): Promise<AdminUser[]> {
+    const { data, error } = await supabase.rpc('admin_list_users');
+    if (error) throw error;
+    return (data ?? []) as AdminUser[];
+  }
+
+  async function listGroups(): Promise<AdminGroup[]> {
+    const { data, error } = await supabase.rpc('admin_list_groups');
+    if (error) throw error;
+    return (data ?? []) as AdminGroup[];
+  }
+
   async function call(fn: string, args: Record<string, string>): Promise<void> {
     const { error } = await supabase.rpc(fn, args);
     if (error) throw error;
@@ -64,6 +90,9 @@ export const useModerationStore = defineStore('moderation', () => {
     sendFeedback,
     listReports,
     listFeedback,
+    overview,
+    listUsers,
+    listGroups,
     resolveReport,
     deletePost,
     deleteMessage,

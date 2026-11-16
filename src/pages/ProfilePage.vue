@@ -4,9 +4,10 @@
       <!-- Profil-Kopf -->
       <q-card class="q-mt-lg nx-profile-head">
         <div class="row items-center no-wrap q-pa-md" style="gap: 14px">
-          <q-avatar color="primary" size="64px" style="font-size: 26px">{{ initials }}</q-avatar>
+          <q-avatar size="64px" style="font-size: 26px" class="text-weight-bold" :style="avatarStyle(authStore.user?.id)">{{ initials }}</q-avatar>
           <div class="col" style="min-width: 0">
             <div class="nx-display ellipsis" style="font-size: 20px">{{ authStore.profile?.first_name }}</div>
+            <div class="text-caption text-grey">@{{ authStore.profile?.username }}</div>
             <div class="text-caption text-grey">
               <q-icon name="place" size="14px" /> {{ authStore.profile?.city || 'Kein Ort hinterlegt' }}
             </div>
@@ -147,8 +148,8 @@
           <q-item clickable to="/admin">
             <q-item-section avatar><div class="nx-icon-tile"><q-icon name="shield" /></div></q-item-section>
             <q-item-section>
-              <q-item-label>Moderation</q-item-label>
-              <q-item-label caption>Meldungen und Feedback</q-item-label>
+              <q-item-label>Admin-Bereich</q-item-label>
+              <q-item-label caption>Übersicht, Nutzer, Gruppen, Meldungen, Feedback</q-item-label>
             </q-item-section>
             <q-item-section side><q-icon name="chevron_right" /></q-item-section>
           </q-item>
@@ -204,6 +205,16 @@
               maxlength="40"
               :rules="[(val: string) => !!val.trim() || 'Bitte Vorname eingeben']"
             />
+            <q-input
+              v-model="username"
+              label="Nutzername"
+              prefix="@"
+              maxlength="20"
+              autocapitalize="off"
+              autocomplete="off"
+              hint="Eindeutig – daran erkennt man dich, auch wenn andere gleich heißen"
+              :rules="[(val: string) => usernameError(val) ?? true]"
+            />
             <q-select
               v-model="gender"
               :options="genderOptions"
@@ -239,7 +250,7 @@
               </div>
             </div>
             <div class="text-caption text-grey">
-              Andere sehen: Vorname, Stadt, „Über mich“ und Sportarten. Nie deine E-Mail oder dein Geschlecht.
+              Andere sehen: Vorname, Nutzername, Stadt, „Über mich“ und Sportarten. Nie deine E-Mail oder dein Geschlecht.
             </div>
             <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
           </q-card-section>
@@ -305,6 +316,8 @@ import { notifyError, notifySuccess } from '@/utils/notify';
 import { isPushEnabled, pushAvailable, requestPushPermission } from '@/utils/push';
 import { appUrl, shareOrCopy } from '@/utils/share';
 import { applyThemePref, readThemePref, type ThemePref } from '@/utils/theme';
+import { avatarStyle } from '@/utils/avatar';
+import { normalizeUsername, usernameError } from '@/utils/username';
 import { version } from '../../package.json';
 
 const $q = useQuasar();
@@ -330,6 +343,7 @@ watch(theme, (pref) => applyThemePref(pref));
 // --- Profil bearbeiten ---
 const editOpen = ref(false);
 const firstName = ref('');
+const username = ref('');
 const gender = ref<Gender>('keine_angabe');
 const city = ref<string | null>(null);
 const selectedCity = ref<City | null>(null);
@@ -346,6 +360,7 @@ const needsCity = computed(() => !hasLocation.value);
 function openEdit() {
   const p = authStore.profile;
   firstName.value = p?.first_name ?? '';
+  username.value = p?.username ?? '';
   gender.value = p?.gender ?? 'keine_angabe';
   city.value = p?.city ?? null;
   selectedCity.value = null;
@@ -378,6 +393,7 @@ async function onSave() {
   try {
     await authStore.updateOwnProfile({
       first_name: firstName.value.trim(),
+      username: normalizeUsername(username.value),
       gender: gender.value,
       bio: bio.value.trim() || null,
       sports: favSports.value,
@@ -390,7 +406,11 @@ async function onSave() {
     editOpen.value = false;
     notifySuccess('Profil gespeichert');
   } catch (e) {
-    errorMessage.value = friendlyError(e, 'Speichern fehlgeschlagen. Bitte versuche es erneut.');
+    // 23505 = Nutzername schon vergeben (eindeutiger Index in der Datenbank)
+    errorMessage.value =
+      (e as { code?: string }).code === '23505'
+        ? 'Dieser Nutzername ist schon vergeben. Bitte wähle einen anderen.'
+        : friendlyError(e, 'Speichern fehlgeschlagen. Bitte versuche es erneut.');
   } finally {
     loading.value = false;
   }

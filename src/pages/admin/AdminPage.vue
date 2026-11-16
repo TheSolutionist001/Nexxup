@@ -1,9 +1,22 @@
 <template>
   <q-page class="q-px-md q-pb-xl">
     <div style="max-width: 720px; margin: 0 auto">
-      <div class="nx-display q-pt-lg q-mb-md" style="font-size: 24px">Moderation</div>
+      <div class="nx-display q-pt-lg q-mb-md" style="font-size: 24px">Verwaltung</div>
 
-      <q-tabs v-model="tab" dense no-caps align="left" active-color="primary" indicator-color="primary" class="q-mb-md">
+      <q-tabs
+        v-model="tab"
+        dense
+        no-caps
+        align="left"
+        active-color="primary"
+        indicator-color="primary"
+        class="q-mb-md"
+        outside-arrows
+        mobile-arrows
+      >
+        <q-tab name="overview" label="Übersicht" />
+        <q-tab name="users" :label="`Nutzer (${users.length})`" />
+        <q-tab name="groups" :label="`Gruppen (${groups.length})`" />
         <q-tab name="reports" :label="`Meldungen (${reports.length})`" />
         <q-tab name="feedback" :label="`Feedback (${feedback.length})`" />
       </q-tabs>
@@ -20,6 +33,103 @@
       >
         <q-btn outline color="primary" icon="refresh" label="Erneut versuchen" @click="load" />
       </EmptyState>
+
+      <!-- Uebersicht -->
+      <template v-else-if="tab === 'overview'">
+        <div v-if="stats" class="nx-stats">
+          <div v-for="t in tiles" :key="t.label" class="nx-stat" :class="{ 'nx-stat--alert': t.alert }" @click="t.tab && (tab = t.tab)">
+            <q-icon :name="t.icon" size="20px" class="nx-stat__icon" />
+            <div class="nx-stat__value">{{ t.value }}</div>
+            <div class="nx-stat__label">{{ t.label }}</div>
+            <div v-if="t.sub" class="nx-stat__sub">{{ t.sub }}</div>
+          </div>
+        </div>
+        <div class="text-caption text-grey q-mt-md">
+          „Aktiv“ = in den letzten 7 Tagen angemeldet. Tippe auf eine Kachel, um zur Liste zu springen.
+        </div>
+      </template>
+
+      <!-- Nutzer -->
+      <template v-else-if="tab === 'users'">
+        <q-input v-model="userSearch" dense outlined clearable placeholder="Name, Nutzername, Stadt oder E-Mail" class="q-mb-sm">
+          <template #prepend><q-icon name="search" /></template>
+        </q-input>
+        <EmptyState v-if="filteredUsers.length === 0" icon="person_search" title="Niemand gefunden" />
+        <q-list v-else class="nx-group">
+          <q-item v-for="u in filteredUsers" :key="u.id">
+            <q-item-section avatar>
+              <q-avatar size="36px" class="text-weight-bold" :style="avatarStyle(u.id)">
+                {{ (u.first_name?.[0] ?? '?').toUpperCase() }}
+              </q-avatar>
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>
+                {{ u.first_name || 'Ohne Namen' }}
+                <q-badge v-if="u.is_admin" color="primary" label="Admin" class="q-ml-xs" />
+                <q-badge v-if="u.is_banned" color="negative" label="gesperrt" class="q-ml-xs" />
+              </q-item-label>
+              <q-item-label caption>@{{ u.username }} · {{ u.city || 'ohne Ort' }}</q-item-label>
+              <q-item-label caption class="ellipsis">{{ u.email }}</q-item-label>
+              <q-item-label caption>
+                dabei seit {{ formatDay(u.created_at) }} · zuletzt
+                {{ u.last_sign_in_at ? formatDay(u.last_sign_in_at) : 'nie' }} · {{ u.groups_count }} Gruppen ·
+                {{ u.posts_count }} Gesuche
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <q-btn flat round dense icon="more_vert" aria-label="Aktionen">
+                <q-menu>
+                  <q-list style="min-width: 180px">
+                    <q-item v-close-popup clickable @click="ui.showProfile(u.id)">
+                      <q-item-section>Profil ansehen</q-item-section>
+                    </q-item>
+                    <q-item v-if="!u.is_banned && !u.is_admin" v-close-popup clickable @click="onBanUser(u)">
+                      <q-item-section class="text-negative">Sperren</q-item-section>
+                    </q-item>
+                    <q-item v-if="u.is_banned" v-close-popup clickable @click="onUnbanUser(u)">
+                      <q-item-section>Entsperren</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
+              </q-btn>
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </template>
+
+      <!-- Gruppen -->
+      <template v-else-if="tab === 'groups'">
+        <EmptyState v-if="groups.length === 0" icon="groups" title="Noch keine Gruppen" />
+        <q-list v-else class="nx-group">
+          <q-item v-for="g in groups" :key="g.id">
+            <q-item-section avatar>
+              <div class="nx-admin-sport" :style="{ background: sportGradient(g.sport) }">{{ getSport(g.sport).emoji }}</div>
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>
+                {{ g.name }}
+                <q-badge v-if="g.is_public_event" outline color="primary" label="öffentlich" class="q-ml-xs" />
+              </q-item-label>
+              <q-item-label caption>
+                {{ getSport(g.sport).label }} · {{ g.city || 'ohne Ort' }} · von {{ g.creator_name ?? '?' }}
+                <template v-if="g.creator_username">(@{{ g.creator_username }})</template>
+              </q-item-label>
+              <q-item-label caption>
+                {{ g.members_active }}/{{ g.max_members }} dabei
+                <template v-if="g.members_waitlist > 0"> · {{ g.members_waitlist }} warten</template>
+                · Termin: {{ g.next_meetup_at ? formatDate(g.next_meetup_at) : 'keiner' }} · erstellt {{ formatDay(g.created_at) }}
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <q-btn flat round dense icon="delete" color="negative" aria-label="Gruppe löschen" @click="onDeleteGroup(g)" />
+            </q-item-section>
+          </q-item>
+        </q-list>
+        <div class="text-caption text-grey q-mt-sm">
+          Als Admin siehst du hier alle Gruppen (auch private) mit Kennzahlen – Chat und Treffpunkt bleiben den
+          Mitgliedern vorbehalten.
+        </div>
+      </template>
 
       <!-- Meldungen -->
       <template v-else-if="tab === 'reports'">
@@ -81,15 +191,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import EmptyState from '@/components/EmptyState.vue';
 import { useModerationStore } from '@/stores/moderation-store';
 import { notifyError, notifySuccess } from '@/utils/notify';
+import { useUiStore } from '@/stores/ui-store';
+import { getSport, sportGradient } from '@/data/sports';
+import { avatarStyle } from '@/utils/avatar';
 import {
   reportReasonOptions,
   type AdminFeedback,
+  type AdminGroup,
+  type AdminOverview,
   type AdminReport,
+  type AdminUser,
   type ReportKind,
   type ReportReason,
 } from '@/types/report';
@@ -97,7 +213,45 @@ import {
 const $q = useQuasar();
 const moderationStore = useModerationStore();
 
-const tab = ref<'reports' | 'feedback'>('reports');
+const ui = useUiStore();
+
+type Tab = 'overview' | 'users' | 'groups' | 'reports' | 'feedback';
+const tab = ref<Tab>('overview');
+const stats = ref<AdminOverview | null>(null);
+const users = ref<AdminUser[]>([]);
+const groups = ref<AdminGroup[]>([]);
+const userSearch = ref<string | null>('');
+
+const filteredUsers = computed(() => {
+  const q = (userSearch.value ?? '').trim().toLowerCase();
+  if (!q) return users.value;
+  return users.value.filter((u) =>
+    [u.first_name, u.username, u.city, u.email].some((v) => (v ?? '').toLowerCase().includes(q)),
+  );
+});
+
+// Kennzahlen-Kacheln der Uebersicht
+const tiles = computed(() => {
+  const s = stats.value;
+  if (!s) return [];
+  const tile = (icon: string, value: number, label: string, sub = '', t: Tab | null = null, alert = false) => ({
+    icon, value, label, sub, tab: t, alert,
+  });
+  return [
+    tile('group', s.users_total, 'Nutzer', `${s.users_new_7d} neu · ${s.users_active_7d} aktiv`, 'users'),
+    tile('groups', s.groups_total, 'Gruppen', `${s.groups_public} öffentlich · ${s.groups_new_7d} neu`, 'groups'),
+    tile('event', s.meetups_upcoming, 'Kommende Termine', `${s.rsvps_yes_upcoming} Zusagen`),
+    tile('push_pin', s.posts_active, 'Aktive Gesuche', `${s.posts_new_7d} neu (7 Tage)`),
+    tile('chat', s.messages_7d, 'Nachrichten', 'letzte 7 Tage'),
+    tile('flag', s.reports_open, 'Offene Meldungen', s.reports_open > 0 ? 'bitte prüfen' : 'alles ruhig', 'reports', s.reports_open > 0),
+    tile('rate_review', s.feedback_total, 'Feedback', '', 'feedback'),
+    tile('gavel', s.users_banned, 'Gesperrte Konten', '', 'users'),
+  ];
+});
+
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: '2-digit' });
+}
 const reports = ref<AdminReport[]>([]);
 const feedback = ref<AdminFeedback[]>([]);
 const loading = ref(true);
@@ -122,9 +276,12 @@ function formatDate(iso: string): string {
 async function load() {
   loading.value = true;
   try {
-    [reports.value, feedback.value] = await Promise.all([
+    [reports.value, feedback.value, stats.value, users.value, groups.value] = await Promise.all([
       moderationStore.listReports(),
       moderationStore.listFeedback(),
+      moderationStore.overview(),
+      moderationStore.listUsers(),
+      moderationStore.listGroups(),
     ]);
     loadError.value = false;
   } catch {
@@ -186,6 +343,28 @@ function onUnban(r: AdminReport) {
   confirm('Entsperren', `${r.target_user_name ?? 'Diese Person'} kann sich wieder anmelden.`, () => moderationStore.unbanUser(id), 'Entsperrt.');
 }
 
+function onBanUser(u: AdminUser) {
+  confirm(
+    'Nutzer sperren',
+    `${u.first_name} (@${u.username}) wird gesperrt. Gesuche, Nachrichten und eigene Gruppen werden entfernt. Fortfahren?`,
+    () => moderationStore.banUser(u.id),
+    'Nutzer gesperrt.',
+  );
+}
+
+function onUnbanUser(u: AdminUser) {
+  confirm('Entsperren', `${u.first_name} (@${u.username}) kann sich wieder anmelden.`, () => moderationStore.unbanUser(u.id), 'Entsperrt.');
+}
+
+function onDeleteGroup(g: AdminGroup) {
+  confirm(
+    'Gruppe löschen',
+    `„${g.name}“ wird samt Chat, Umfragen und Mitgliedschaften für alle endgültig gelöscht. Fortfahren?`,
+    () => moderationStore.deleteGroup(g.id),
+    'Gruppe gelöscht.',
+  );
+}
+
 async function onResolve(r: AdminReport) {
   try {
     await moderationStore.resolveReport(r.report_id);
@@ -197,3 +376,47 @@ async function onResolve(r: AdminReport) {
 
 onMounted(load);
 </script>
+
+<style scoped>
+.nx-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.nx-stat {
+  border-radius: 18px;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+  padding: 14px;
+  cursor: pointer;
+}
+.nx-stat--alert {
+  border-color: var(--nx-accent);
+}
+.nx-stat__icon {
+  color: var(--nx-accent-text);
+}
+.nx-stat__value {
+  font-family: 'Unbounded Variable', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 6px;
+}
+.nx-stat__label {
+  font-weight: 600;
+}
+.nx-stat__sub {
+  font-size: 12px;
+  color: var(--nx-muted);
+}
+.nx-admin-sport {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+</style>

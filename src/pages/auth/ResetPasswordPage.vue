@@ -19,6 +19,14 @@
               <q-icon :name="show ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="show = !show" />
             </template>
           </q-input>
+          <q-input
+            v-model="password2"
+            :type="show ? 'text' : 'password'"
+            label="Neues Passwort wiederholen"
+            autocomplete="new-password"
+            lazy-rules
+            :rules="[(val: string) => val === password || 'Die Passwörter stimmen nicht überein']"
+          />
           <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
           <q-btn type="submit" label="Passwort speichern" color="primary" class="full-width" unelevated :loading="loading" />
           <q-btn flat label="Abbrechen" class="full-width" to="/" />
@@ -39,6 +47,7 @@ import { notifySuccess } from '@/utils/notify';
 const router = useRouter();
 const authStore = useAuthStore();
 const password = ref('');
+const password2 = ref('');
 const show = ref(false);
 const loading = ref(false);
 const errorMessage = ref('');

@@ -155,7 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function updateOwnProfile(
-    updates: Partial<Pick<Profile, 'first_name' | 'gender' | 'city' | 'bio' | 'sports'>>,
+    updates: Partial<Pick<Profile, 'first_name' | 'username' | 'gender' | 'city' | 'bio' | 'sports'>>,
   ) {
     if (!user.value) throw new Error('Nicht eingeloggt');
     const { data, error } = await supabase
