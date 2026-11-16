@@ -1,0 +1,1 @@
+import{L as e}from"./index-C_zZCMzO.js";function t(t){e.create({message:t,color:`positive`,icon:`check_circle`,timeout:2e3})}function n(t){e.create({message:t,color:`negative`,icon:`error`,timeout:3500})}export{t as n,n as t};

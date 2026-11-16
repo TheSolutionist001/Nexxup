@@ -1,0 +1,1 @@
+import{t as e}from"./wrappers-Dd2sgqS9.js";import{n as t,r as n,t as r}from"./theme-BhDZiVHF.js";var i=e(()=>{r(t(),!1),n()});export{i as default};

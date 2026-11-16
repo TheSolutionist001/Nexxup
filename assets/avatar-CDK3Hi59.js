@@ -1,0 +1,1 @@
+import{t as e}from"./map-Bv3_vuMq.js";function t(t){return e(t??``)%360}function n(e){return{background:`hsl(${t(e)} 70% 62%)`,color:`#16140f`}}export{n as t};

@@ -1,0 +1,1 @@
+import{t as e}from"./wrappers-Dd2sgqS9.js";import{B as t}from"./index-C_zZCMzO.js";var n=e(()=>{t()});export{n as default};

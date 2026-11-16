@@ -1,0 +1,1 @@
+var e=[{label:`Männlich`,value:`maennlich`},{label:`Weiblich`,value:`weiblich`},{label:`Divers`,value:`divers`},{label:`Keine Angabe`,value:`keine_angabe`}];export{e as t};

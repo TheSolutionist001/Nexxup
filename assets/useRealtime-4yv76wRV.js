@@ -1,0 +1,1 @@
+import{M as e,N as t}from"./create-C5vwxUQW.js";import{W as n}from"./index-C_zZCMzO.js";function r(r,i,a){let o=`rt-${r}-${i??`all`}-${Math.random().toString(36).slice(2,8)}`,s=null;e(()=>{s=n.channel(o).on(`postgres_changes`,{event:`*`,schema:`public`,table:r,...i?{filter:i}:{}},e=>a(e)).subscribe()}),t(()=>{s&&=(n.removeChannel(s),null)})}export{r as t};

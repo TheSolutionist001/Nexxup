@@ -1,0 +1,1 @@
+function e(e){let t=2166136261;for(let n=0;n<e.length;n++)t^=e.charCodeAt(n),t=Math.imul(t,16777619);return t>>>0}function t(t,n,r){let i=e(t),a=i%3600/3600*2*Math.PI,o=.4+Math.floor(i/3600)%1e3/1e3*1.6,s=o/111.32*Math.cos(a),c=o/(111.32*Math.cos(n*Math.PI/180))*Math.sin(a);return{lat:n+s,lng:r+c}}export{t as n,e as t};

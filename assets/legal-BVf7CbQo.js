@@ -1,0 +1,1 @@
+var e={name:``,street:``,city:``,country:`Deutschland`,email:``,phone:``},t=!!(e.name&&e.street&&e.city&&e.email),n=`15.11.2026`,r={regeln:`Community-Regeln & Nutzungsbedingungen`,datenschutz:`Datenschutzerklärung`,impressum:`Impressum`};export{t as i,n,e as r,r as t};

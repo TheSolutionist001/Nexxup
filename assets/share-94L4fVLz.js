@@ -1,0 +1,1 @@
+async function e(e){if(typeof navigator.share==`function`)try{return await navigator.share(e),`shared`}catch(e){if(e.name===`AbortError`)return`cancelled`}try{return await navigator.clipboard.writeText(e.url),`copied`}catch{return`failed`}}function t(){return`${window.location.origin}${window.location.pathname}`}export{e as n,t};

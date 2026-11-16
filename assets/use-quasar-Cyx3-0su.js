@@ -1,0 +1,1 @@
+import{T as e}from"./create-C5vwxUQW.js";function t(){return e(`_q_`)}export{t};
