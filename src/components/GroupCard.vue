@@ -1,24 +1,29 @@
 <template>
+  <!-- Gruppe als Karte: neutrale Gemeinschaft, darunter (fuer Mitglieder) das naechste Event -->
   <q-card v-ripple class="nx-gcard cursor-pointer" @click="router.push(target)">
-    <div class="nx-gcard__cover" :style="{ background: sportGradient(group.sport) }">
-      <div class="nx-gcard__emoji">{{ sport.emoji }}</div>
+    <div class="nx-gcard__cover" :style="{ background: cover }">
+      <div class="nx-gcard__emoji">{{ emoji }}</div>
       <div class="nx-gcard__tags">
-        <span v-if="isUpcoming(group.next_meetup_at)" class="nx-tag">{{ formatMeetup(group.next_meetup_at!) }}</span>
+        <span v-if="group.next_event_at" class="nx-tag">{{ formatMeetup(group.next_event_at) }}</span>
         <span v-if="distance" class="nx-tag">{{ distance }}</span>
       </div>
-      <div class="nx-gcard__free" :class="{ 'nx-gcard__free--full': freeSpots === 0 }">
-        {{ freeLabel }}
+      <div class="nx-gcard__free">
+        {{ group.member_count }} {{ group.member_count === 1 ? 'Mitglied' : 'Mitglieder' }}
       </div>
     </div>
     <div class="q-pa-md">
       <div class="nx-display ellipsis" style="font-size: 15px">{{ group.name }}</div>
       <div class="text-caption text-grey ellipsis">
-        {{ sport.label }}<template v-if="group.city"> · {{ group.city }}</template>
+        <template v-if="group.next_event_title">Nächstes Event: {{ group.next_event_title }}</template>
+        <template v-else-if="group.description">{{ group.description }}</template>
+        <template v-else>{{ group.city ?? 'Gruppe' }}</template>
       </div>
       <div class="row items-center no-wrap q-mt-sm">
-        <div class="col">
-          <div class="text-caption text-weight-bold">{{ group.active_count }}/{{ group.max_members }} dabei</div>
-          <div class="nx-bar q-mt-xs"><span :style="{ width: `${fill}%` }" /></div>
+        <div class="col text-caption text-grey ellipsis">
+          <template v-if="group.my_status">
+            {{ group.events_upcoming === 0 ? 'Kein Event geplant' : group.events_upcoming === 1 ? '1 Event geplant' : `${group.events_upcoming} Events geplant` }}
+          </template>
+          <template v-else-if="group.city"><q-icon name="place" size="14px" /> {{ group.city }}</template>
         </div>
         <q-btn
           v-if="!group.my_status"
@@ -27,15 +32,10 @@
           unelevated
           dense
           padding="6px 14px"
-          :label="freeSpots === 0 ? 'Warteliste' : 'Mitmachen'"
+          label="Mitmachen"
           @click.stop="router.push(target)"
         />
-        <q-badge
-          v-else
-          class="q-ml-md"
-          :color="group.my_status === 'active' ? 'positive' : 'warning'"
-          :label="group.my_status === 'active' ? 'Dabei ✓' : 'Warteliste'"
-        />
+        <q-badge v-else class="q-ml-md" color="positive" label="Mitglied ✓" />
       </div>
     </div>
   </q-card>
@@ -45,19 +45,20 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getSport, sportGradient } from '@/data/sports';
-import { formatDistanceShort, formatMeetup, isUpcoming } from '@/utils/format';
+import { avatarHue } from '@/utils/avatar';
+import { formatDistanceShort, formatMeetup } from '@/utils/format';
 import type { DiscoverGroup } from '@/types/group';
 
 const props = defineProps<{ group: DiscoverGroup }>();
 const router = useRouter();
 
-const sport = computed(() => getSport(props.group.sport));
 const distance = computed(() => formatDistanceShort(props.group.distance_m));
-const freeSpots = computed(() => Math.max(0, props.group.max_members - props.group.active_count));
-const fill = computed(() => Math.min(100, (props.group.active_count / props.group.max_members) * 100));
-const freeLabel = computed(() => {
-  if (freeSpots.value === 0) return 'Voll · Warteliste';
-  return freeSpots.value === 1 ? 'Noch 1 Platz' : `Noch ${freeSpots.value} Plätze`;
+// Mit kommendem Event: dessen Sportart. Sonst eine feste Farbe pro Gruppe.
+const emoji = computed(() => (props.group.next_event_sport ? getSport(props.group.next_event_sport).emoji : '👥'));
+const cover = computed(() => {
+  if (props.group.next_event_sport) return sportGradient(props.group.next_event_sport);
+  const hue = avatarHue(props.group.id);
+  return `linear-gradient(135deg, hsl(${hue} 55% 52%) 0%, hsl(${(hue + 40) % 360} 55% 22%) 100%)`;
 });
 // Mitglieder landen direkt in der Gruppe, alle anderen auf der Beitrittsseite.
 const target = computed(() =>
@@ -104,9 +105,5 @@ const target = computed(() =>
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 999px;
-}
-.nx-gcard__free--full {
-  background: var(--nx-ink);
-  color: var(--nx-cream);
 }
 </style>

@@ -1,21 +1,17 @@
 export type GroupMemberStatus = 'active' | 'waitlist';
 
+// Eine Gruppe ist eine neutrale Gemeinschaft; Sport, Termin, Plaetze und
+// Kosten gehoeren zu den Events der Gruppe (siehe types/event.ts).
 export interface Group {
   id: string;
   name: string;
   description: string | null;
-  max_members: number;
   is_public_event: boolean;
   created_by: string;
   created_at: string;
-  sport: string;
-  next_meetup_at: string | null;
   city: string | null;
-  // 1 = jede Woche, 2 = alle 2 Wochen ...; null = einmalig
-  meetup_repeat_weeks?: number | null;
-  skill_level?: string;
-  // Kosten pro Person und Termin in Cent (null = kostenlos)
-  fee_cents?: number | null;
+  // Wer darf Events anlegen: alle Mitglieder oder nur ausgewaehlte
+  event_creation: 'all' | 'selected';
 }
 
 export interface GroupMember {
@@ -24,6 +20,10 @@ export interface GroupMember {
   user_id: string;
   status: GroupMemberStatus;
   joined_at: string;
+  // Vom Ersteller freigeschaltet, Events zu organisieren
+  can_organize: boolean;
+  // Eigene Einstellung: alle Events sehen oder nur die zu den eigenen Interessen
+  event_filter: 'all' | 'interests';
 }
 
 // Mitglied plus oeffentlich sichtbarer Name (aus public_profiles)
@@ -44,45 +44,33 @@ export interface GroupPreview {
   already_member: boolean;
 }
 
-// Rueckgabe von discover_groups (eigene Gruppen + oeffentliche im Umkreis)
+// Rueckgabe von discover_groups_v2 (eigene Gruppen + oeffentliche im Umkreis)
 export interface DiscoverGroup {
   id: string;
   name: string;
   description: string | null;
-  sport: string;
-  max_members: number;
   is_public_event: boolean;
   created_by: string;
-  next_meetup_at: string | null;
   city: string | null;
-  active_count: number;
+  member_count: number;
   my_status: GroupMemberStatus | null;
   distance_m: number | null;
   // Ungefaehre Position (Stadt, auf ~1 km gerundet) fuer die Karte
-  lat?: number | null;
-  lng?: number | null;
+  lat: number | null;
+  lng: number | null;
+  // Naechstes Event - nur fuer Mitglieder gefuellt
+  next_event_at: string | null;
+  next_event_title: string | null;
+  next_event_sport: string | null;
+  events_upcoming: number;
 }
 
 export interface NewGroupInput {
   name: string;
   description: string;
-  maxMembers: number;
-  sport: string;
-  nextMeetupAt: string | null; // ISO
   city: string | null;
   lat: number | null;
   lng: number | null;
-  repeatWeeks: number | null;
-  skillLevel: string;
-}
-
-export type RsvpStatus = 'yes' | 'no';
-
-export interface MeetupRsvp {
-  user_id: string;
-  status: RsvpStatus;
-  first_name: string | null;
-  username: string | null;
 }
 
 export interface PollOptionView {

@@ -3,67 +3,39 @@
     <q-card class="q-pa-md" style="width: 100%; max-width: 480px">
       <q-card-section>
         <div class="text-h6">Gruppe gründen</div>
-        <div class="text-caption text-grey">Du wirst automatisch erstes Mitglied.</div>
+        <div class="text-caption text-grey">
+          Eine Gruppe ist deine Gemeinschaft – z. B. ein Freundeskreis oder ein Verein. Darin plant ihr
+          anschließend beliebig viele Events (Fußball, Laufen, Padel …).
+        </div>
       </q-card-section>
 
       <q-card-section>
         <q-form class="q-gutter-md" @submit="onSubmit">
-          <div>
-            <div class="text-caption text-grey q-mb-xs">Sportart</div>
-            <SportPicker v-model="sport" />
-          </div>
-
           <q-input
             v-model="name"
-            label="Name"
+            label="Name der Gruppe"
             maxlength="60"
-            placeholder="z. B. Feierabend-Kick"
+            placeholder="z. B. Gruppo Bietigheim"
             :rules="[(val: string) => !!val.trim() || 'Bitte einen Namen eingeben']"
           />
-          <q-input v-model="description" label="Beschreibung (optional)" type="textarea" autogrow />
-          <q-input
-            v-model.number="maxMembers"
-            label="Maximale Teilnehmerzahl"
-            type="number"
-            :rules="[(val: number) => (val && val >= 1) || 'Mindestens 1']"
-          />
-          <q-input
-            v-model="meetupAt"
-            label="Nächster Termin (optional)"
-            type="datetime-local"
-            stack-label
-            hint="Erscheint auf der Startseite unter „Deine nächsten Termine“"
-          />
-          <q-select
-            v-if="meetupAt"
-            v-model="repeatWeeks"
-            :options="repeatOptions"
-            emit-value
-            map-options
-            label="Wiederholung"
-            hint="Bei Wiederholung springt der Termin danach automatisch weiter"
-          />
-
-          <q-select v-model="skillLevel" :options="skillLevels" emit-value map-options label="Niveau" />
-
-          <PlaceSelect v-model="place" label="Treffpunkt (optional)" :near="myLocation" />
-          <div class="text-caption text-grey" style="margin-top: 4px">
-            Den genauen Treffpunkt sehen nur Mitglieder – mit Route zu Google Maps.
-          </div>
+          <q-input v-model="description" label="Beschreibung (optional)" type="textarea" autogrow maxlength="1000" />
 
           <CitySelect v-model="city" label="Stadt (optional)" @select="onCity" />
 
-          <q-toggle v-model="isPublic" label="Öffentlich – in „Entdecken“ für Leute in der Nähe zeigen" />
+          <q-toggle v-model="isPublic" label="Öffentlich – Leute in der Nähe können die Gruppe finden und beitreten" />
           <div v-if="isPublic && !selectedCity" class="nx-note nx-note--info">
             Wähle eine Stadt, damit die Gruppe bei Leuten in der Nähe auftaucht.
+          </div>
+          <div class="text-caption text-grey">
+            Mitglieder lädst du per Link ein – es gibt keine Obergrenze. Events sehen immer nur Mitglieder.
           </div>
 
           <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
 
           <div class="row q-gutter-sm">
-            <q-btn label="Abbrechen" flat to="/groups" no-caps />
+            <q-btn label="Abbrechen" flat to="/groups" />
             <q-space />
-            <q-btn type="submit" label="Gründen" color="primary" unelevated :loading="loading" no-caps />
+            <q-btn type="submit" label="Gründen" color="primary" unelevated :loading="loading" />
           </div>
         </q-form>
       </q-card-section>
@@ -75,30 +47,19 @@
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
-import PlaceSelect from '@/components/PlaceSelect.vue';
-import SportPicker from '@/components/SportPicker.vue';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useAuthStore } from '@/stores/auth-store';
-import { notifyError } from '@/utils/notify';
-import type { City, Place } from '@/utils/geocode';
-import { repeatOptions } from '@/data/repeat';
-import { skillLevels } from '@/data/sports';
 import { friendlyError } from '@/utils/errors';
+import type { City } from '@/utils/geocode';
 
 const router = useRouter();
 const groupsStore = useGroupsStore();
 const authStore = useAuthStore();
 
-const sport = ref('sonstiges');
 const name = ref('');
 const description = ref('');
-const maxMembers = ref(10);
-const meetupAt = ref('');
-const repeatWeeks = ref<number | null>(null);
-const skillLevel = ref('alle');
 const city = ref<string | null>(null);
 const selectedCity = ref<City | null>(null);
-const place = ref<Place | null>(null);
 const myLocation = ref<{ lat: number; lng: number } | null>(null);
 const isPublic = ref(false);
 const loading = ref(false);
@@ -136,24 +97,11 @@ async function onSubmit() {
     const id = await groupsStore.createGroup({
       name: name.value.trim(),
       description: description.value.trim(),
-      maxMembers: maxMembers.value,
-      sport: sport.value,
-      // datetime-local liefert Ortszeit ohne Zone -> als lokale Zeit interpretieren
-      nextMeetupAt: meetupAt.value ? new Date(meetupAt.value).toISOString() : null,
       city: selectedCity.value?.name ?? null,
       lat: selectedCity.value?.lat ?? null,
       lng: selectedCity.value?.lng ?? null,
-      repeatWeeks: meetupAt.value ? repeatWeeks.value : null,
-      skillLevel: skillLevel.value,
     });
-    if (isPublic.value) await groupsStore.togglePublic(id, true);
-    if (place.value) {
-      try {
-        await groupsStore.saveMeetupPlace(id, place.value);
-      } catch {
-        notifyError('Gruppe erstellt, aber der Treffpunkt konnte nicht gespeichert werden.');
-      }
-    }
+    if (isPublic.value) await groupsStore.updateGroup(id, { is_public_event: true });
     await router.push(`/groups/${id}`);
   } catch (e) {
     errorMessage.value = friendlyError(e, 'Die Gruppe konnte nicht erstellt werden. Bitte versuche es erneut.');

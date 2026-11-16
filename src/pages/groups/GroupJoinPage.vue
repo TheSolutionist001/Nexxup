@@ -22,7 +22,7 @@
             {{ preview.description }}
           </div>
           <div class="text-caption text-grey q-mt-sm">
-            {{ preview.active_count }} von {{ preview.max_members }} aktiven Mitgliedern
+            {{ preview.active_count }} {{ preview.active_count === 1 ? 'Mitglied' : 'Mitglieder' }}
           </div>
         </q-card-section>
 
@@ -30,8 +30,8 @@
           <div v-if="preview.already_member" class="nx-note nx-note--info">
             Du bist bereits in dieser Gruppe.
           </div>
-          <div v-else-if="preview.is_full" class="nx-note nx-note--warning">
-            Die Gruppe ist voll — du kommst auf die Warteliste.
+          <div v-else class="text-caption text-grey">
+            Als Mitglied siehst du die Events der Gruppe und entscheidest bei jedem selbst, ob du dabei bist.
           </div>
 
           <div v-if="errorMessage" class="text-negative text-caption q-mt-sm">{{ errorMessage }}</div>
@@ -48,7 +48,7 @@
           <q-btn
             v-else
             color="primary"
-            :label="preview.is_full ? 'Auf Warteliste setzen' : 'Beitreten'"
+            label="Beitreten"
             class="full-width q-mt-md"
             unelevated
             no-caps
@@ -96,7 +96,7 @@ async function onJoin() {
   try {
     const status = await groupsStore.joinGroup(groupId);
     $q.notify({
-      message: status === 'active' ? 'Du bist der Gruppe beigetreten.' : 'Du stehst auf der Warteliste.',
+      message: status === 'active' ? 'Du bist der Gruppe beigetreten.' : 'Beitritt gespeichert.',
       color: 'positive',
       timeout: 2000,
     });

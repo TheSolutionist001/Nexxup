@@ -8,11 +8,15 @@ import type {
   GroupMemberWithName,
   GroupPreview,
   NewGroupInput,
+  PollView,
 } from '@/types/group';
-import type { MeetupRsvp, PollView, RsvpStatus } from '@/types/group';
-import type { Place } from '@/utils/geocode';
 import { buildPollViews, type PollOptionRow, type PollRow, type PollVoteRow } from '@/utils/polls';
 import { fetchFirstNames } from '@/stores/chat-store';
+
+// Gruppen sind neutrale Gemeinschaften ohne Teilnehmergrenze. Die Datenbank
+// kennt aus frueheren Versionen noch "max_members" - der Wert wird nicht mehr
+// angezeigt und beim Anlegen einfach sehr gross gesetzt.
+const NO_MEMBER_LIMIT = 100000;
 
 export const useGroupsStore = defineStore('groups', () => {
   const myGroups = ref<DiscoverGroup[]>([]);
@@ -21,30 +25,21 @@ export const useGroupsStore = defineStore('groups', () => {
     const { data, error } = await supabase.rpc('create_group', {
       p_name: input.name,
       p_description: input.description || null,
-      p_max_members: input.maxMembers,
-      p_sport: input.sport,
-      p_next_meetup_at: input.nextMeetupAt,
+      p_max_members: NO_MEMBER_LIMIT,
+      p_sport: 'sonstiges',
+      p_next_meetup_at: null,
       p_city: input.city,
       p_lat: input.lat,
       p_lng: input.lng,
     });
     if (error) throw error;
-    const id = data as string;
-    // Wiederholung + Niveau separat setzen (Ersteller darf seine Gruppe aendern - RLS)
-    const extra: Record<string, unknown> = {};
-    if (input.repeatWeeks && input.nextMeetupAt) extra.meetup_repeat_weeks = input.repeatWeeks;
-    if (input.skillLevel && input.skillLevel !== 'alle') extra.skill_level = input.skillLevel;
-    if (Object.keys(extra).length > 0) {
-      const { error: extraError } = await supabase.from('groups').update(extra).eq('id', id);
-      if (extraError) throw extraError;
-    }
-    return id;
+    return data as string;
   }
 
-  // radiusKm = null: nur eigene Gruppen (Mitglied oder Warteliste).
+  // radiusKm = null: nur eigene Gruppen.
   // Sonst zusaetzlich oeffentliche Gruppen im Umkreis (serverseitig per RLS gefiltert).
   async function discoverGroups(radiusKm: number | null): Promise<DiscoverGroup[]> {
-    const { data, error } = await supabase.rpc('discover_groups', { p_radius_km: radiusKm });
+    const { data, error } = await supabase.rpc('discover_groups_v2', { p_radius_km: radiusKm });
     if (error) throw error;
     return (data ?? []) as DiscoverGroup[];
   }
@@ -57,44 +52,6 @@ export const useGroupsStore = defineStore('groups', () => {
     const { data, error } = await supabase.rpc('group_active_count', { p_group_id: groupId });
     if (error) throw error;
     return (data as number) ?? 0;
-  }
-
-  // Termin + Wiederholung (null = einmalig). Ohne Termin keine Wiederholung.
-  async function updateMeetup(groupId: string, nextMeetupAt: string | null, repeatWeeks: number | null = null): Promise<void> {
-    const { error } = await supabase
-      .from('groups')
-      .update({ next_meetup_at: nextMeetupAt, meetup_repeat_weeks: nextMeetupAt ? repeatWeeks : null })
-      .eq('id', groupId);
-    if (error) throw error;
-  }
-
-  // --- Zusagen fuer den aktuellen Termin ---
-  async function fetchRsvps(groupId: string, meetupAt: string): Promise<MeetupRsvp[]> {
-    const { data, error } = await supabase
-      .from('meetup_rsvps')
-      .select('user_id, status')
-      .eq('group_id', groupId)
-      .eq('meetup_at', meetupAt);
-    if (error) throw error;
-    const rows = (data ?? []) as { user_id: string; status: RsvpStatus }[];
-    if (rows.length === 0) return [];
-    // Name + Nutzername (gleiche Vornamen muessen unterscheidbar bleiben)
-    const { data: profiles, error: pErr } = await supabase
-      .from('public_profiles')
-      .select('id, first_name, username')
-      .in('id', rows.map((r) => r.user_id));
-    if (pErr) throw pErr;
-    const byId = new Map((profiles ?? []).map((p) => [p.id as string, p]));
-    return rows.map((r) => ({
-      ...r,
-      first_name: (byId.get(r.user_id)?.first_name as string | null | undefined) ?? null,
-      username: (byId.get(r.user_id)?.username as string | null | undefined) ?? null,
-    }));
-  }
-
-  async function setRsvp(groupId: string, status: RsvpStatus | null): Promise<void> {
-    const { error } = await supabase.rpc('set_rsvp', { p_group_id: groupId, p_status: status });
-    if (error) throw error;
   }
 
   // --- Umfragen ---
@@ -142,36 +99,13 @@ export const useGroupsStore = defineStore('groups', () => {
   }
 
   // Treffpunkt: nur fuer Mitglieder/Ersteller lesbar (RLS) - sonst null.
-  async function fetchMeetupPlace(groupId: string): Promise<Place | null> {
-    const { data, error } = await supabase
-      .from('group_meetup_places')
-      .select('name, address, lat, lng')
-      .eq('group_id', groupId)
-      .maybeSingle();
-    if (error) throw error;
-    return data as Place | null;
-  }
-
-  // Treffpunkt setzen/aendern (place) oder entfernen (null). Nur Ersteller (RLS).
-  async function saveMeetupPlace(groupId: string, place: Place | null): Promise<void> {
-    if (!place) {
-      const { error } = await supabase.from('group_meetup_places').delete().eq('group_id', groupId);
-      if (error) throw error;
-      return;
-    }
-    const { error } = await supabase.from('group_meetup_places').upsert({
-      group_id: groupId,
-      name: place.name.slice(0, 200),
-      address: place.address?.slice(0, 300) ?? null,
-      lat: place.lat,
-      lng: place.lng,
-      updated_at: new Date().toISOString(),
-    });
-    if (error) throw error;
-  }
 
   async function fetchGroup(id: string): Promise<Group | null> {
-    const { data, error } = await supabase.from('groups').select('*').eq('id', id).maybeSingle();
+    const { data, error } = await supabase
+      .from('groups')
+      .select('id, name, description, is_public_event, created_by, created_at, city, event_creation')
+      .eq('id', id)
+      .maybeSingle();
     if (error) throw error;
     return data as Group | null;
   }
@@ -227,51 +161,34 @@ export const useGroupsStore = defineStore('groups', () => {
     return data as GroupPreview | null;
   }
 
-  // Stammdaten aendern (nur Ersteller - RLS). Wird die Gruppe groesser,
-  // ruecken Wartende automatisch nach (Trigger in der Datenbank).
+  // Stammdaten und Einstellungen aendern (nur Ersteller - RLS).
   async function updateGroup(
     groupId: string,
-    updates: {
-      name: string;
-      description: string | null;
-      max_members: number;
-      skill_level: string;
-      sport: string;
-      fee_cents: number | null;
-    },
+    updates: Partial<Pick<Group, 'name' | 'description' | 'is_public_event' | 'event_creation'>>,
   ): Promise<void> {
     const { error } = await supabase.from('groups').update(updates).eq('id', groupId);
     if (error) throw error;
   }
 
-  // Mitglied entfernen (nur Ersteller - RLS). Nachruecken passiert automatisch.
+  // Mitglied entfernen (nur Ersteller - RLS). Zusagen in kuenftigen Events entfallen automatisch.
   async function removeMember(groupId: string, userId: string): Promise<void> {
     const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId);
     if (error) throw error;
   }
 
-  // --- Kosten: Merkliste "wer hat bezahlt" (keine Zahlungsabwicklung) ---
-  // Der Gruppenleiter sieht alle Eintraege, Mitglieder nur den eigenen (RLS).
-  async function fetchPaidUserIds(groupId: string, meetupAt: string): Promise<string[]> {
-    const { data, error } = await supabase
-      .from('meetup_payments')
-      .select('user_id')
-      .eq('group_id', groupId)
-      .eq('meetup_at', meetupAt);
-    if (error) throw error;
-    return (data ?? []).map((r) => r.user_id as string);
-  }
-
-  async function setPayment(groupId: string, userId: string, paid: boolean): Promise<void> {
-    const { error } = await supabase.rpc('set_payment', { p_group_id: groupId, p_user_id: userId, p_paid: paid });
+  // Eigene Einstellung: alle Events der Gruppe sehen oder nur die zu meinen Interessen.
+  async function setMyEventFilter(groupId: string, filter: 'all' | 'interests'): Promise<void> {
+    const { error } = await supabase.rpc('set_my_event_filter', { p_group_id: groupId, p_filter: filter });
     if (error) throw error;
   }
 
-  async function togglePublic(groupId: string, value: boolean): Promise<void> {
-    const { error } = await supabase
-      .from('groups')
-      .update({ is_public_event: value })
-      .eq('id', groupId);
+  // Ersteller: einem Mitglied erlauben/verbieten, Events zu organisieren.
+  async function setMemberOrganizer(groupId: string, userId: string, can: boolean): Promise<void> {
+    const { error } = await supabase.rpc('set_member_organizer', {
+      p_group_id: groupId,
+      p_user_id: userId,
+      p_can: can,
+    });
     if (error) throw error;
   }
 
@@ -280,26 +197,20 @@ export const useGroupsStore = defineStore('groups', () => {
     createGroup,
     discoverGroups,
     fetchMyGroups,
-    updateMeetup,
-    fetchRsvps,
-    setRsvp,
+    fetchActiveCount,
     fetchPolls,
     createPoll,
     setVote,
     deletePoll,
-    fetchMeetupPlace,
-    saveMeetupPlace,
-    fetchActiveCount,
     fetchGroup,
     fetchMembers,
     joinGroup,
     leaveGroup,
     deleteGroup,
     getGroupPreview,
-    togglePublic,
     updateGroup,
     removeMember,
-    fetchPaidUserIds,
-    setPayment,
+    setMyEventFilter,
+    setMemberOrganizer,
   };
 });

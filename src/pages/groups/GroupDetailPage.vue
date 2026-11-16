@@ -7,7 +7,7 @@
         <q-btn v-if="group" flat round dense icon="more_vert" aria-label="Optionen">
           <q-menu>
             <q-list style="min-width: 210px">
-              <q-item v-if="isMember || isCreator" v-close-popup clickable @click="onShare">
+              <q-item v-if="isMember" v-close-popup clickable @click="onShare">
                 <q-item-section avatar><q-icon name="ios_share" /></q-item-section>
                 <q-item-section>Einladung teilen</q-item-section>
               </q-item>
@@ -45,190 +45,205 @@
       />
 
       <template v-else>
-        <q-card class="nx-detail">
-          <div class="nx-detail__cover" :style="{ background: sportGradient(group.sport) }">
-            <div class="nx-detail__emoji">{{ sport.emoji }}</div>
-            <div class="nx-detail__tags">
-              <span class="nx-tag">{{ sport.label }}</span>
-              <span v-if="group.skill_level && group.skill_level !== 'alle'" class="nx-tag">{{ skillLabel(group.skill_level) }}</span>
-              <span v-if="group.is_public_event" class="nx-tag">Öffentlich</span>
+        <!-- Kopf: die Gruppe ist eine neutrale Gemeinschaft -->
+        <q-card class="nx-ghead">
+          <div class="row items-center no-wrap q-pa-md" style="gap: 14px">
+            <div class="nx-ghead__icon" :style="avatarStyle(group.id)">{{ group.name[0]?.toUpperCase() }}</div>
+            <div class="col" style="min-width: 0">
+              <div class="nx-display" style="font-size: 19px; line-height: 1.2">{{ group.name }}</div>
+              <div class="text-caption text-grey q-mt-xs">
+                <q-icon name="groups" size="14px" /> {{ memberCount }} {{ memberCount === 1 ? 'Mitglied' : 'Mitglieder' }}
+                <template v-if="group.city"> · <q-icon name="place" size="14px" /> {{ group.city }}</template>
+                <template v-if="group.is_public_event"> · öffentlich</template>
+              </div>
             </div>
           </div>
-          <div class="q-pa-md">
-            <div class="text-h6">{{ group.name }}</div>
-            <div v-if="group.description" class="text-body2 text-grey q-mt-xs" style="white-space: pre-line">
-              {{ group.description }}
-            </div>
+          <div v-if="group.description" class="q-px-md q-pb-md" style="white-space: pre-line">
+            {{ group.description }}
+          </div>
+        </q-card>
 
-            <div class="column q-gutter-xs q-mt-md">
-              <div class="row items-center no-wrap">
-                <q-icon name="event" size="18px" class="text-primary q-mr-sm" />
-                <span v-if="group.next_meetup_at" :class="{ 'text-grey': !isUpcoming(group.next_meetup_at) }">
-                  <template v-if="!isUpcoming(group.next_meetup_at)">Vorbei: </template>{{ formatMeetup(group.next_meetup_at) }}
-                  <span v-if="repeatLabel" class="text-grey"> · {{ repeatLabel }}</span>
-                </span>
-                <span v-else class="text-grey">Kein Termin eingetragen</span>
-                <q-btn
-                  v-if="isCreator"
-                  flat dense no-caps color="primary" size="sm" class="q-ml-sm"
-                  :label="group.next_meetup_at ? 'Ändern' : 'Termin festlegen'"
-                  @click="openMeetupDialog"
-                />
-                <q-btn
-                  v-if="(isMember || isCreator) && group.next_meetup_at && isUpcoming(group.next_meetup_at)"
-                  flat dense round size="sm" icon="event_available" color="primary" class="q-ml-xs"
-                  aria-label="In den Kalender"
-                  @click="onCalendar"
-                >
-                  <q-tooltip>In meinen Kalender übernehmen</q-tooltip>
-                </q-btn>
-              </div>
-              <div v-if="group.city" class="row items-center no-wrap">
-                <q-icon name="place" size="18px" class="text-primary q-mr-sm" />{{ group.city }}
-              </div>
-              <div v-if="group.fee_cents" class="row items-center no-wrap">
-                <q-icon name="payments" size="18px" class="text-primary q-mr-sm" />
-                {{ formatEuro(group.fee_cents) }} pro Person
-              </div>
-              <div class="row items-center no-wrap">
-                <q-icon name="groups" size="18px" class="text-primary q-mr-sm" />
-                {{ activeCount }} von {{ group.max_members }} dabei
-              </div>
-            </div>
-            <div class="nx-bar q-mt-sm">
-              <span :style="{ width: `${Math.min(100, (activeCount / group.max_members) * 100)}%` }" />
-            </div>
+        <!-- Noch kein Mitglied (oeffentliche Gruppe) -->
+        <template v-if="!isMember">
+          <div class="nx-note nx-note--info q-mt-md">
+            Tritt bei, um die Events der Gruppe zu sehen, zuzusagen und mitzuschreiben.
+          </div>
+          <q-btn color="primary" unelevated label="Mitmachen" class="full-width q-mt-md" :to="`/groups/join/${groupId}`" />
+        </template>
 
-            <MeetupRsvp
-              v-if="(isMember || isCreator) && group.next_meetup_at && isUpcoming(group.next_meetup_at)"
-              :key="group.next_meetup_at"
-              class="q-mt-md"
-              :group-id="groupId"
-              :meetup-at="group.next_meetup_at"
-              :my-id="authStore.user?.id ?? null"
-              :can-rsvp="isActiveMember"
-              :is-creator="isCreator"
-              :fee-cents="group.fee_cents ?? null"
+        <template v-else>
+          <!-- Events -->
+          <div class="row items-center q-mt-lg q-mb-xs">
+            <div class="nx-section__title col">Events</div>
+            <q-btn
+              v-if="canOrganize"
+              unelevated
+              color="primary"
+              dense
+              padding="6px 12px"
+              icon="add"
+              label="Event planen"
+              :to="`/groups/${groupId}/events/new`"
             />
           </div>
-        </q-card>
 
-        <!-- Treffpunkt: nur Mitglieder/Ersteller (RLS liefert Fremden nichts) -->
-        <template v-if="isMember || isCreator">
-          <MeetupPlaceCard v-if="meetupPlace" :place="meetupPlace" class="q-mt-md">
-            <q-btn v-if="isCreator" flat no-caps color="primary" label="Ändern" @click="openPlaceDialog" />
-          </MeetupPlaceCard>
-          <q-card v-else-if="isCreator" flat bordered class="q-pa-md q-mt-md">
-            <div class="row items-center no-wrap">
-              <q-icon name="place" size="22px" class="text-primary q-mr-sm" />
-              <div class="col text-body2 text-grey">Noch kein Treffpunkt festgelegt.</div>
-              <q-btn flat no-caps color="primary" label="Festlegen" @click="openPlaceDialog" />
+          <q-btn-toggle
+            :model-value="myFilter"
+            class="nx-toggle q-mb-sm"
+            spread
+            unelevated
+            no-caps
+            dense
+            toggle-color="primary"
+            toggle-text-color="dark"
+            :options="[
+              { label: 'Alle Events', value: 'all' },
+              { label: 'Nur meine Interessen', value: 'interests' },
+            ]"
+            @update:model-value="onFilter"
+          />
+          <div v-if="myFilter === 'interests' && mySportsCount === 0" class="nx-note nx-note--warning q-mb-sm">
+            Du hast noch keine Sportarten im <router-link to="/profile">Profil</router-link> gewählt – so siehst du
+            gerade keine Events.
+          </div>
+
+          <div v-if="events.length > 0" class="column q-gutter-sm">
+            <EventCard v-for="e in events" :key="e.id" :event="e" />
+          </div>
+          <q-card v-else class="q-pa-md text-center">
+            <div class="text-body2 text-grey">
+              {{
+                myFilter === 'interests'
+                  ? 'Gerade kein Event zu deinen Interessen.'
+                  : 'Noch kein Event geplant.'
+              }}
+            </div>
+            <q-btn
+              v-if="canOrganize"
+              flat
+              color="primary"
+              icon="add"
+              label="Erstes Event planen"
+              class="q-mt-xs"
+              :to="`/groups/${groupId}/events/new`"
+            />
+            <div v-else class="text-caption text-grey q-mt-xs">
+              In dieser Gruppe planen ausgewählte Mitglieder die Events.
             </div>
           </q-card>
-        </template>
-        <div v-else class="nx-note nx-note--info q-mt-md">
-          Den genauen Treffpunkt siehst du, sobald du der Gruppe beigetreten bist.
-        </div>
 
-        <!-- Gruppen-Chat + Umfragen: nur aktive Mitglieder (RLS) -->
-        <template v-if="isActiveMember">
-          <div ref="chatAnchor" class="text-subtitle2 q-mt-md q-mb-xs">Gruppen-Chat</div>
-          <ChatPanel :group-id="groupId" :my-id="authStore.user?.id ?? null" show-names height="380px" />
+          <!-- Gruppen-Chat + Umfragen -->
+          <div ref="chatAnchor" class="nx-section__title q-mt-lg q-mb-xs">Gruppen-Chat</div>
+          <ChatPanel :group-id="groupId" :my-id="authStore.user?.id ?? null" show-names height="360px" />
           <GroupPolls class="q-mt-md" :group-id="groupId" :my-id="authStore.user?.id ?? null" :is-group-creator="isCreator" />
-        </template>
-        <div v-else-if="isMember" class="nx-note nx-note--info q-mt-md">
-          Du stehst auf der Warteliste. Chat und Umfragen siehst du, sobald du nachrückst.
-        </div>
 
-        <!-- Einladelink + Mitglieder nur fuer Mitglieder (RLS zeigt Fremden ohnehin keine Namen) -->
-        <template v-if="isMember || isCreator">
-        <q-card flat bordered class="q-pa-md q-mt-md">
-          <div class="text-subtitle2 q-mb-xs">Einladelink</div>
-          <div class="row items-center no-wrap">
-            <div class="col ellipsis text-caption text-grey">{{ inviteLink }}</div>
-            <q-btn flat dense icon="content_copy" @click="copyInvite" aria-label="Link kopieren" />
-            <q-btn flat dense icon="ios_share" color="primary" @click="onShare" aria-label="Einladung teilen" />
-          </div>
-        </q-card>
+          <!-- Einladelink -->
+          <q-card flat bordered class="q-pa-md q-mt-md">
+            <div class="text-subtitle2 q-mb-xs">Einladelink zur Gruppe</div>
+            <div class="row items-center no-wrap">
+              <div class="col ellipsis text-caption text-grey">{{ inviteLink }}</div>
+              <q-btn flat dense icon="content_copy" aria-label="Link kopieren" @click="copyInvite" />
+              <q-btn flat dense icon="ios_share" color="primary" aria-label="Einladung teilen" @click="onShare" />
+            </div>
+          </q-card>
 
-        <!-- Mitglieder -->
-        <div class="text-subtitle2 q-mt-md q-mb-xs">Aktive Mitglieder</div>
-        <q-list bordered separator class="rounded-borders">
-          <q-item v-for="m in activeMembers" :key="m.id" clickable @click="ui.showProfile(m.user_id)">
-            <q-item-section avatar>
-              <q-avatar size="32px" class="text-weight-bold" :style="avatarStyle(m.user_id)">
-                {{ (m.first_name?.[0] ?? '?').toUpperCase() }}
-              </q-avatar>
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>{{ m.first_name ?? 'Unbekannt' }}</q-item-label>
-              <q-item-label caption>{{ memberCaption(m) }}</q-item-label>
-            </q-item-section>
-            <q-item-section side>
-              <q-badge v-if="m.user_id === group.created_by" color="primary" label="Ersteller" />
-              <q-btn
-                v-else-if="isCreator"
-                flat dense round size="sm" icon="person_remove" color="grey" aria-label="Mitglied entfernen"
-                @click.stop="onRemoveMember(m)"
-              />
-            </q-item-section>
-          </q-item>
-        </q-list>
-
-        <template v-if="waitlistMembers.length > 0">
-          <div class="text-subtitle2 q-mt-md q-mb-xs">Warteliste</div>
-          <q-list bordered separator class="rounded-borders">
-            <q-item v-for="m in waitlistMembers" :key="m.id" clickable @click="ui.showProfile(m.user_id)">
+          <!-- Mitglieder -->
+          <div class="text-subtitle2 q-mt-md q-mb-xs">Mitglieder ({{ members.length }})</div>
+          <q-list class="nx-group">
+            <q-item v-for="m in members" :key="m.id" clickable @click="ui.showProfile(m.user_id)">
               <q-item-section avatar>
-                <q-avatar class="nx-btn-soft" size="32px">
+                <q-avatar size="32px" class="text-weight-bold" :style="avatarStyle(m.user_id)">
                   {{ (m.first_name?.[0] ?? '?').toUpperCase() }}
                 </q-avatar>
               </q-item-section>
               <q-item-section>
-                <q-item-label>{{ m.first_name ?? 'Unbekannt' }}</q-item-label>
+                <q-item-label>
+                  {{ m.first_name ?? 'Unbekannt' }}
+                  <q-badge v-if="m.user_id === group.created_by" color="primary" label="Ersteller" class="q-ml-xs" />
+                  <q-badge
+                    v-else-if="group.event_creation === 'selected' && m.can_organize"
+                    outline
+                    color="primary"
+                    label="Organisator"
+                    class="q-ml-xs"
+                  />
+                </q-item-label>
                 <q-item-label caption>{{ memberCaption(m) }}</q-item-label>
+              </q-item-section>
+              <q-item-section v-if="isCreator && m.user_id !== group.created_by" side>
+                <q-btn flat dense round size="sm" icon="more_vert" aria-label="Mitglied verwalten" @click.stop>
+                  <q-menu>
+                    <q-list style="min-width: 230px">
+                      <q-item
+                        v-if="group.event_creation === 'selected'"
+                        v-close-popup
+                        clickable
+                        @click="onToggleOrganizer(m)"
+                      >
+                        <q-item-section avatar><q-icon :name="m.can_organize ? 'event_busy' : 'event_available'" /></q-item-section>
+                        <q-item-section>
+                          {{ m.can_organize ? 'Darf keine Events mehr planen' : 'Darf Events planen' }}
+                        </q-item-section>
+                      </q-item>
+                      <q-item v-close-popup clickable @click="onRemoveMember(m)">
+                        <q-item-section avatar><q-icon name="person_remove" color="negative" /></q-item-section>
+                        <q-item-section class="text-negative">Aus der Gruppe entfernen</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
               </q-item-section>
             </q-item>
           </q-list>
-        </template>
-        </template>
 
-        <!-- Aktionen -->
-        <div class="q-mt-lg">
+          <!-- Einstellungen des Erstellers -->
           <template v-if="isCreator">
-            <q-toggle
-              :model-value="group.is_public_event"
-              label="Als öffentliches Event sichtbar machen"
-              @update:model-value="onTogglePublic"
-            />
-            <q-btn
-              flat
-              color="negative"
-              label="Gruppe löschen"
-              class="full-width q-mt-sm"
-              no-caps
-              @click="onDelete"
-            />
+            <div class="text-subtitle2 q-mt-lg q-mb-xs">Einstellungen</div>
+            <q-list class="nx-group">
+              <q-item>
+                <q-item-section>
+                  <q-item-label>Wer darf Events planen?</q-item-label>
+                  <q-item-label caption>
+                    {{
+                      group.event_creation === 'all'
+                        ? 'Alle Mitglieder können Events anlegen.'
+                        : 'Nur du und Mitglieder, die du in der Liste oben freischaltest.'
+                    }}
+                  </q-item-label>
+                  <q-btn-toggle
+                    :model-value="group.event_creation"
+                    class="nx-toggle q-mt-sm"
+                    spread
+                    unelevated
+                    no-caps
+                    dense
+                    toggle-color="primary"
+                    toggle-text-color="dark"
+                    :options="[
+                      { label: 'Alle Mitglieder', value: 'all' },
+                      { label: 'Nur Ausgewählte', value: 'selected' },
+                    ]"
+                    @update:model-value="onEventCreation"
+                  />
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section>
+                  <q-item-label>Öffentlich auffindbar</q-item-label>
+                  <q-item-label caption>
+                    Leute in der Nähe finden die Gruppe unter „Entdecken“ und können beitreten. Events sehen nur
+                    Mitglieder.
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-toggle :model-value="group.is_public_event" color="primary" @update:model-value="onTogglePublic" />
+                </q-item-section>
+              </q-item>
+            </q-list>
+            <q-btn flat color="negative" label="Gruppe löschen" class="full-width q-mt-md" @click="onDelete" />
           </template>
-          <q-btn
-            v-else-if="!isMember"
-            color="primary"
-            unelevated
-            label="Mitmachen"
-            class="full-width"
-            no-caps
-            :to="`/groups/join/${groupId}`"
-          />
-          <q-btn
-            v-else
-            outline
-            color="negative"
-            label="Gruppe verlassen"
-            class="full-width"
-            no-caps
-            @click="onLeave"
-          />
-        </div>
+          <q-btn v-else outline color="negative" label="Gruppe verlassen" class="full-width q-mt-lg" @click="onLeave" />
+        </template>
       </template>
     </div>
 
@@ -240,76 +255,14 @@
         <q-form @submit="onSaveEdit">
           <q-card-section><div class="text-h6">Gruppe bearbeiten</div></q-card-section>
           <q-card-section class="q-gutter-md q-pt-none">
-            <SportPicker v-model="edit.sport" />
             <q-input v-model="edit.name" label="Name" maxlength="60" :rules="[(v: string) => !!v.trim() || 'Bitte einen Namen eingeben']" />
             <q-input v-model="edit.description" label="Beschreibung" type="textarea" autogrow maxlength="1000" />
-            <q-input
-              v-model.number="edit.max_members"
-              label="Maximale Teilnehmerzahl"
-              type="number"
-              :hint="`Aktuell ${activeMembers.length} aktiv – kleiner geht nicht. Bei mehr Plätzen rücken Wartende automatisch nach.`"
-              :rules="[(v: number) => (v && v >= Math.max(1, activeMembers.length)) || `Mindestens ${Math.max(1, activeMembers.length)}`]"
-            />
-            <q-select v-model="edit.skill_level" :options="skillLevels" emit-value map-options label="Niveau" />
-            <q-input
-              v-model="edit.fee"
-              label="Kosten pro Person (optional)"
-              suffix="€"
-              inputmode="decimal"
-              placeholder="z. B. 5,00"
-              hint="Nur als Merkliste: Du hakst ab, wer bezahlt hat. Die App wickelt keine Zahlungen ab."
-              :rules="[(v: string) => parseEuro(v) !== undefined || 'Bitte einen Betrag wie 5 oder 5,50 eingeben']"
-            />
           </q-card-section>
           <q-card-actions align="right">
-            <q-btn v-close-popup flat no-caps label="Abbrechen" />
-            <q-btn type="submit" unelevated no-caps color="primary" label="Speichern" :loading="savingEdit" />
+            <q-btn v-close-popup flat label="Abbrechen" />
+            <q-btn type="submit" unelevated color="primary" label="Speichern" :loading="savingEdit" />
           </q-card-actions>
         </q-form>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="meetupOpen">
-      <q-card style="width: 100%; max-width: 380px">
-        <q-card-section>
-          <div class="text-h6">Nächster Termin</div>
-        </q-card-section>
-        <q-card-section>
-          <q-input v-model="meetupInput" type="datetime-local" label="Datum und Uhrzeit" stack-label />
-          <q-select
-            v-model="repeatInput"
-            class="q-mt-sm"
-            :options="repeatOptions"
-            emit-value
-            map-options
-            label="Wiederholung"
-            hint="Bei Wiederholung springt der Termin danach automatisch weiter"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn v-if="group?.next_meetup_at" flat no-caps color="negative" label="Entfernen" @click="saveMeetup(null)" />
-          <q-space />
-          <q-btn v-close-popup flat no-caps label="Abbrechen" />
-          <q-btn unelevated no-caps color="primary" label="Speichern" :disable="!meetupInput" @click="saveMeetup(meetupInput)" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="placeOpen">
-      <q-card style="width: 100%; max-width: 420px">
-        <q-card-section>
-          <div class="text-h6">Treffpunkt</div>
-          <div class="text-caption text-grey">Halle, Platz oder Adresse suchen</div>
-        </q-card-section>
-        <q-card-section>
-          <PlaceSelect v-model="placeInput" :near="myLocation" />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn v-if="meetupPlace" flat no-caps color="negative" label="Entfernen" @click="savePlace(null)" />
-          <q-space />
-          <q-btn v-close-popup flat no-caps label="Abbrechen" />
-          <q-btn unelevated no-caps color="primary" label="Speichern" :disable="!placeInput" @click="savePlace(placeInput)" />
-        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -319,36 +272,30 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { useGroupsStore } from '@/stores/groups-store';
-import { useAuthStore } from '@/stores/auth-store';
-import { useRealtime } from '@/composables/useRealtime';
-import EmptyState from '@/components/EmptyState.vue';
-import MeetupPlaceCard from '@/components/MeetupPlaceCard.vue';
-import PlaceSelect from '@/components/PlaceSelect.vue';
 import ChatPanel from '@/components/ChatPanel.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import EventCard from '@/components/EventCard.vue';
 import GroupPolls from '@/components/GroupPolls.vue';
-import MeetupRsvp from '@/components/MeetupRsvp.vue';
 import ReportDialog from '@/components/ReportDialog.vue';
-import SportPicker from '@/components/SportPicker.vue';
+import { useAuthStore } from '@/stores/auth-store';
+import { useEventsStore } from '@/stores/events-store';
+import { useGroupsStore } from '@/stores/groups-store';
 import { useModerationStore } from '@/stores/moderation-store';
 import { useUiStore } from '@/stores/ui-store';
-import { friendlyError } from '@/utils/errors';
-import { downloadIcs } from '@/utils/ics';
+import { useRealtime } from '@/composables/useRealtime';
 import { avatarStyle } from '@/utils/avatar';
-import { formatEuro, parseEuro } from '@/utils/money';
-import { shareOrCopy } from '@/utils/share';
-import type { ReportReason } from '@/types/report';
-import { repeatOptions } from '@/data/repeat';
-import type { Place } from '@/utils/geocode';
+import { friendlyError } from '@/utils/errors';
 import { notifyError, notifySuccess } from '@/utils/notify';
-import { getSport, skillLabel, skillLevels, sportGradient } from '@/data/sports';
-import { formatMeetup, formatRepeat, isUpcoming } from '@/utils/format';
+import { shareOrCopy } from '@/utils/share';
+import type { GroupEvent } from '@/types/event';
 import type { Group, GroupMemberWithName } from '@/types/group';
+import type { ReportReason } from '@/types/report';
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const groupsStore = useGroupsStore();
+const eventsStore = useEventsStore();
 const authStore = useAuthStore();
 const moderationStore = useModerationStore();
 const ui = useUiStore();
@@ -356,123 +303,42 @@ const ui = useUiStore();
 const groupId = route.params.id as string;
 const group = ref<Group | null>(null);
 const members = ref<GroupMemberWithName[]>([]);
+const events = ref<GroupEvent[]>([]);
 const loading = ref(true);
 const loadError = ref(false);
-
-const activeMembers = computed(() => members.value.filter((m) => m.status === 'active'));
-const waitlistMembers = computed(() => members.value.filter((m) => m.status === 'waitlist'));
-const isCreator = computed(() => group.value?.created_by === authStore.user?.id);
-const isMember = computed(() => members.value.some((m) => m.user_id === authStore.user?.id));
-const isActiveMember = computed(() =>
-  members.value.some((m) => m.user_id === authStore.user?.id && m.status === 'active'),
-);
-const repeatLabel = computed(() => formatRepeat(group.value?.meetup_repeat_weeks));
-// Aus der Nachrichten-Uebersicht (?chat=1) direkt zum Gruppen-Chat springen
-const chatAnchor = ref<HTMLElement | null>(null);
-const sport = computed(() => getSport(group.value?.sport));
 // Nicht-Mitglieder (oeffentliche Gruppe) sehen keine Namen, nur die Anzahl.
 const publicCount = ref(0);
-const activeCount = computed(() => (isMember.value ? activeMembers.value.length : publicCount.value));
 
-// Termin bearbeiten (nur Ersteller; RLS erlaubt Updates nur dem Ersteller)
-const meetupOpen = ref(false);
-const meetupInput = ref('');
-const repeatInput = ref<number | null>(null);
+const me = computed(() => members.value.find((m) => m.user_id === authStore.user?.id) ?? null);
+const isMember = computed(() => me.value !== null);
+const isCreator = computed(() => group.value?.created_by === authStore.user?.id);
+const memberCount = computed(() => (isMember.value ? members.value.length : publicCount.value));
+const myFilter = computed(() => me.value?.event_filter ?? 'all');
+const mySportsCount = computed(() => authStore.profile?.sports?.length ?? 0);
+// Darf ich hier Events anlegen? (Die Datenbank prueft das beim Speichern noch einmal.)
+const canOrganize = computed(
+  () => isCreator.value || (isMember.value && (group.value?.event_creation === 'all' || me.value?.can_organize === true)),
+);
 
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function openMeetupDialog() {
-  meetupInput.value = group.value?.next_meetup_at ? toLocalInput(group.value.next_meetup_at) : '';
-  repeatInput.value = group.value?.meetup_repeat_weeks ?? null;
-  meetupOpen.value = true;
-}
-
-async function saveMeetup(value: string | null) {
-  const iso = value ? new Date(value).toISOString() : null;
-  try {
-    await groupsStore.updateMeetup(groupId, iso, repeatInput.value);
-    if (group.value) {
-      group.value.next_meetup_at = iso;
-      group.value.meetup_repeat_weeks = iso ? repeatInput.value : null;
-    }
-    meetupOpen.value = false;
-    notifySuccess(iso ? 'Termin gespeichert' : 'Termin entfernt');
-  } catch {
-    notifyError('Der Termin konnte nicht gespeichert werden.');
-  }
-}
-// Treffpunkt (nur fuer Mitglieder/Ersteller lesbar; aendern nur Ersteller)
-const meetupPlace = ref<Place | null>(null);
-const placeOpen = ref(false);
-const placeInput = ref<Place | null>(null);
-const myLocation = ref<{ lat: number; lng: number } | null>(null);
-
-async function openPlaceDialog() {
-  placeInput.value = meetupPlace.value;
-  placeOpen.value = true;
-  if (!myLocation.value) {
-    try {
-      myLocation.value = await authStore.fetchMyLocation();
-    } catch {
-      // Suche funktioniert auch ohne Gewichtung.
-    }
-  }
-}
-
-async function savePlace(value: Place | null) {
-  try {
-    await groupsStore.saveMeetupPlace(groupId, value);
-    meetupPlace.value = value;
-    placeOpen.value = false;
-    notifySuccess(value ? 'Treffpunkt gespeichert' : 'Treffpunkt entfernt');
-  } catch {
-    notifyError('Der Treffpunkt konnte nicht gespeichert werden.');
-  }
-}
+// Aus der Nachrichten-Uebersicht (?chat=1) direkt zum Gruppen-Chat springen
+const chatAnchor = ref<HTMLElement | null>(null);
 
 const inviteLink = computed(() => `${window.location.origin}${window.location.pathname}#/groups/join/${groupId}`);
 
-// Eigener Status vor dem letzten Laden - dient dem Vergleich beim Nachruecken.
-const myStatus = ref<string | null>(null);
-
-// silent = true bei Live-Aktualisierungen: kein Ladebalken, damit die Seite
-// beim automatischen Nachladen nicht flackert.
+// silent = true bei Live-Aktualisierungen: kein Ladebalken, damit die Seite nicht flackert.
 async function load(silent = false) {
   if (!silent) loading.value = true;
   try {
     group.value = await groupsStore.fetchGroup(groupId);
     if (group.value) {
       members.value = await groupsStore.fetchMembers(groupId);
-      const memberOrCreator =
-        group.value.created_by === authStore.user?.id ||
-        members.value.some((m) => m.user_id === authStore.user?.id);
-      if (memberOrCreator) {
-        meetupPlace.value = await groupsStore.fetchMeetupPlace(groupId);
+      const member = members.value.some((m) => m.user_id === authStore.user?.id);
+      if (member) {
+        events.value = await eventsStore.fetchMyEvents(groupId);
       } else {
-        meetupPlace.value = null;
+        events.value = [];
         publicCount.value = await groupsStore.fetchActiveCount(groupId);
       }
-    }
-
-    // Statuswechsel erkennen: waitlist -> active bedeutet, ich bin nachgerueckt.
-    // Bewusst ueber den Vorher/Nachher-Vergleich der geladenen Daten, denn im
-    // Live-Ereignis liefert Postgres standardmaessig nur den Primaerschluessel
-    // des alten Datensatzes - der alte Status waere dort nicht enthalten.
-    const previous = myStatus.value;
-    const current = members.value.find((m) => m.user_id === authStore.user?.id)?.status ?? null;
-    myStatus.value = current;
-
-    if (silent && previous === 'waitlist' && current === 'active') {
-      $q.notify({
-        message: 'Du bist nachgerückt und jetzt aktives Mitglied!',
-        color: 'positive',
-        icon: 'celebration',
-        timeout: 8000,
-      });
     }
     loadError.value = false;
   } catch {
@@ -483,41 +349,70 @@ async function load(silent = false) {
   }
 }
 
-// Live-Updates: Mitglieder dieser Gruppe beobachten (Beitritt, Austritt, Nachruecken).
-useRealtime('group_members', `group_id=eq.${groupId}`, () => {
-  void load(true);
-});
+// Live: Mitglieder, Gruppen-Einstellungen, Events und Zusagen dieser Gruppe
+useRealtime('group_members', `group_id=eq.${groupId}`, () => void load(true));
+useRealtime('groups', `id=eq.${groupId}`, () => void load(true));
+useRealtime('group_events', `group_id=eq.${groupId}`, () => void load(true));
+useRealtime('event_participants', null, () => void load(true));
 
-// Treffpunkt-Aenderungen des Erstellers live uebernehmen.
-useRealtime('group_meetup_places', `group_id=eq.${groupId}`, () => {
-  void load(true);
-});
+function memberCaption(m: GroupMemberWithName): string {
+  return [m.username ? `@${m.username}` : null, m.city].filter(Boolean).join(' · ');
+}
+
+async function onFilter(value: 'all' | 'interests') {
+  try {
+    await groupsStore.setMyEventFilter(groupId, value);
+    await load(true);
+  } catch {
+    notifyError('Die Einstellung konnte nicht gespeichert werden.');
+  }
+}
+
+async function onEventCreation(value: 'all' | 'selected') {
+  try {
+    await groupsStore.updateGroup(groupId, { event_creation: value });
+    if (group.value) group.value.event_creation = value;
+  } catch {
+    notifyError('Die Einstellung konnte nicht gespeichert werden.');
+  }
+}
+
+async function onToggleOrganizer(m: GroupMemberWithName) {
+  try {
+    await groupsStore.setMemberOrganizer(groupId, m.user_id, !m.can_organize);
+    await load(true);
+  } catch {
+    notifyError('Das hat nicht geklappt.');
+  }
+}
+
+async function onTogglePublic(value: boolean) {
+  try {
+    await groupsStore.updateGroup(groupId, { is_public_event: value });
+    if (group.value) group.value.is_public_event = value;
+  } catch {
+    notifyError('Die Einstellung konnte nicht gespeichert werden.');
+  }
+}
 
 // Einladung ueber das Teilen-Menue des Handys (sonst Link kopieren)
 async function onShare() {
   const result = await shareOrCopy({
     title: group.value?.name ?? 'Nexxup',
-    text: `Mach mit bei „${group.value?.name ?? 'meiner Gruppe'}“ auf Nexxup:`,
+    text: `Komm in die Gruppe „${group.value?.name ?? ''}“ auf Nexxup:`,
     url: inviteLink.value,
   });
   if (result === 'copied') notifySuccess('Einladelink kopiert');
   else if (result === 'failed') notifyError('Teilen nicht möglich. Bitte den Link von Hand kopieren.');
 }
 
-// Termin als Kalender-Datei (funktioniert mit Apple-, Google- und Outlook-Kalender)
-function onCalendar() {
-  if (!group.value?.next_meetup_at) return;
-  downloadIcs(
-    {
-      uid: `${groupId}-${group.value.next_meetup_at}`,
-      title: `${sport.value.label}: ${group.value.name}`,
-      start: new Date(group.value.next_meetup_at),
-      location: meetupPlace.value ? [meetupPlace.value.name, meetupPlace.value.address].filter(Boolean).join(', ') : group.value.city,
-      description: `Nexxup-Gruppe „${group.value.name}“ – ${inviteLink.value}`,
-      repeatWeeks: group.value.meetup_repeat_weeks ?? null,
-    },
-    'nexxup-termin.ics',
-  );
+async function copyInvite() {
+  try {
+    await navigator.clipboard.writeText(inviteLink.value);
+    notifySuccess('Einladelink kopiert');
+  } catch {
+    notifyError('Kopieren nicht möglich. Bitte den Link von Hand markieren und kopieren.');
+  }
 }
 
 // Gruppe melden (fuer Nicht-Ersteller)
@@ -536,28 +431,17 @@ async function onReport(reason: ReportReason) {
 // Gruppe bearbeiten (nur Ersteller)
 const editOpen = ref(false);
 const savingEdit = ref(false);
-const edit = reactive({ name: '', description: '', max_members: 10, skill_level: 'alle', sport: 'sonstiges', fee: '' });
+const edit = reactive({ name: '', description: '' });
 function openEdit() {
   if (!group.value) return;
   edit.name = group.value.name;
   edit.description = group.value.description ?? '';
-  edit.max_members = group.value.max_members;
-  edit.skill_level = group.value.skill_level ?? 'alle';
-  edit.sport = group.value.sport;
-  edit.fee = group.value.fee_cents ? (group.value.fee_cents / 100).toFixed(2).replace('.', ',') : '';
   editOpen.value = true;
 }
 async function onSaveEdit() {
   savingEdit.value = true;
   try {
-    await groupsStore.updateGroup(groupId, {
-      name: edit.name.trim(),
-      description: edit.description.trim() || null,
-      max_members: edit.max_members,
-      skill_level: edit.skill_level,
-      sport: edit.sport,
-      fee_cents: parseEuro(edit.fee) ?? null,
-    });
+    await groupsStore.updateGroup(groupId, { name: edit.name.trim(), description: edit.description.trim() || null });
     editOpen.value = false;
     notifySuccess('Gruppe gespeichert');
     await load(true);
@@ -568,15 +452,10 @@ async function onSaveEdit() {
   }
 }
 
-// Zweite Zeile in der Mitgliederliste: Nutzername (eindeutig) und Stadt
-function memberCaption(m: GroupMemberWithName): string {
-  return [m.username ? `@${m.username}` : null, m.city].filter(Boolean).join(' · ');
-}
-
 function onRemoveMember(m: GroupMemberWithName) {
   $q.dialog({
     title: 'Mitglied entfernen',
-    message: `${m.first_name ?? 'Diese Person'} aus der Gruppe entfernen? Wer auf der Warteliste steht, rückt automatisch nach.`,
+    message: `${m.first_name ?? 'Diese Person'} aus der Gruppe entfernen? Zusagen in kommenden Events entfallen.`,
     cancel: true,
     ok: { label: 'Entfernen', color: 'negative', flat: true },
   }).onOk(async () => {
@@ -589,28 +468,10 @@ function onRemoveMember(m: GroupMemberWithName) {
   });
 }
 
-async function copyInvite() {
-  try {
-    await navigator.clipboard.writeText(inviteLink.value);
-    notifySuccess('Einladelink kopiert');
-  } catch {
-    notifyError('Kopieren nicht möglich. Bitte den Link von Hand markieren und kopieren.');
-  }
-}
-
-async function onTogglePublic(value: boolean) {
-  try {
-    await groupsStore.togglePublic(groupId, value);
-    if (group.value) group.value.is_public_event = value;
-  } catch {
-    notifyError('Die Einstellung konnte nicht gespeichert werden.');
-  }
-}
-
 function onLeave() {
   $q.dialog({
     title: 'Gruppe verlassen',
-    message: 'Möchtest du diese Gruppe wirklich verlassen?',
+    message: 'Möchtest du diese Gruppe wirklich verlassen? Deine Zusagen in kommenden Events entfallen.',
     cancel: true,
   }).onOk(async () => {
     try {
@@ -625,7 +486,7 @@ function onLeave() {
 function onDelete() {
   $q.dialog({
     title: 'Gruppe löschen',
-    message: 'Die Gruppe wird endgültig gelöscht. Fortfahren?',
+    message: 'Die Gruppe wird samt Events, Chat und Umfragen endgültig gelöscht. Fortfahren?',
     cancel: true,
   }).onOk(async () => {
     try {
@@ -639,41 +500,33 @@ function onDelete() {
 
 onMounted(async () => {
   await load();
-  if (route.query.chat && isActiveMember.value) {
+  if (route.query.chat && isMember.value) {
     await nextTick();
     chatAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });
-
-// Termin-Aenderungen (z. B. automatisches Weiterschieben) live uebernehmen
-useRealtime('groups', `id=eq.${groupId}`, () => {
-  void load(true);
-});
 </script>
 
 <style scoped>
-.nx-detail {
-  overflow: hidden;
+.nx-ghead {
   border-radius: 22px;
 }
-.nx-detail__cover {
-  position: relative;
-  height: 150px;
-  overflow: hidden;
-}
-.nx-detail__emoji {
-  position: absolute;
-  right: 18px;
-  bottom: -16px;
-  font-size: 110px;
-  line-height: 1;
-  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
-}
-.nx-detail__tags {
-  position: absolute;
-  left: 14px;
-  top: 14px;
+.nx-ghead__icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Unbounded Variable', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.nx-toggle {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
 }
 </style>

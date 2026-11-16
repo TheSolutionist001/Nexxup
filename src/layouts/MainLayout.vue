@@ -152,7 +152,8 @@ const desktopItems = computed(() =>
 
 const createOptions = [
   { to: '/board/new', icon: 'push_pin', title: 'Gesuch aufgeben', text: 'Spontan jemanden für eine Aktivität finden' },
-  { to: '/groups/new', icon: 'group_add', title: 'Gruppe gründen', text: 'Regelmäßige Treffen mit fester Teilnehmerzahl' },
+  { to: '/groups', icon: 'event', title: 'Event planen', text: 'In einer deiner Gruppen – wähle zuerst die Gruppe' },
+  { to: '/groups/new', icon: 'group_add', title: 'Gruppe gründen', text: 'Deine Gemeinschaft, in der ihr Events plant' },
 ];
 
 function isActive(to: string): boolean {

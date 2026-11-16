@@ -103,7 +103,7 @@
         <q-list v-else class="nx-group">
           <q-item v-for="g in groups" :key="g.id">
             <q-item-section avatar>
-              <div class="nx-admin-sport" :style="{ background: sportGradient(g.sport) }">{{ getSport(g.sport).emoji }}</div>
+              <div class="nx-admin-sport text-weight-bold" :style="avatarStyle(g.id)">{{ g.name[0]?.toUpperCase() }}</div>
             </q-item-section>
             <q-item-section>
               <q-item-label>
@@ -111,13 +111,12 @@
                 <q-badge v-if="g.is_public_event" outline color="primary" label="öffentlich" class="q-ml-xs" />
               </q-item-label>
               <q-item-label caption>
-                {{ getSport(g.sport).label }} · {{ g.city || 'ohne Ort' }} · von {{ g.creator_name ?? '?' }}
+                {{ g.city || 'ohne Ort' }} · von {{ g.creator_name ?? '?' }}
                 <template v-if="g.creator_username">(@{{ g.creator_username }})</template>
               </q-item-label>
               <q-item-label caption>
-                {{ g.members_active }}/{{ g.max_members }} dabei
-                <template v-if="g.members_waitlist > 0"> · {{ g.members_waitlist }} warten</template>
-                · Termin: {{ g.next_meetup_at ? formatDate(g.next_meetup_at) : 'keiner' }} · erstellt {{ formatDay(g.created_at) }}
+                {{ g.members_active }} {{ g.members_active === 1 ? 'Mitglied' : 'Mitglieder' }} · erstellt
+                {{ formatDay(g.created_at) }}
               </q-item-label>
             </q-item-section>
             <q-item-section side>
@@ -126,8 +125,8 @@
           </q-item>
         </q-list>
         <div class="text-caption text-grey q-mt-sm">
-          Als Admin siehst du hier alle Gruppen (auch private) mit Kennzahlen – Chat und Treffpunkt bleiben den
-          Mitgliedern vorbehalten.
+          Als Admin siehst du hier alle Gruppen (auch private) mit Kennzahlen – Events, Chat und Treffpunkte
+          bleiben den Mitgliedern vorbehalten.
         </div>
       </template>
 
@@ -197,7 +196,6 @@ import EmptyState from '@/components/EmptyState.vue';
 import { useModerationStore } from '@/stores/moderation-store';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import { useUiStore } from '@/stores/ui-store';
-import { getSport, sportGradient } from '@/data/sports';
 import { avatarStyle } from '@/utils/avatar';
 import {
   reportReasonOptions,
@@ -240,7 +238,7 @@ const tiles = computed(() => {
   return [
     tile('group', s.users_total, 'Nutzer', `${s.users_new_7d} neu · ${s.users_active_7d} aktiv`, 'users'),
     tile('groups', s.groups_total, 'Gruppen', `${s.groups_public} öffentlich · ${s.groups_new_7d} neu`, 'groups'),
-    tile('event', s.meetups_upcoming, 'Kommende Termine', `${s.rsvps_yes_upcoming} Zusagen`),
+    tile('event', s.meetups_upcoming, 'Kommende Events', `${s.rsvps_yes_upcoming} Zusagen`),
     tile('push_pin', s.posts_active, 'Aktive Gesuche', `${s.posts_new_7d} neu (7 Tage)`),
     tile('chat', s.messages_7d, 'Nachrichten', 'letzte 7 Tage'),
     tile('flag', s.reports_open, 'Offene Meldungen', s.reports_open > 0 ? 'bitte prüfen' : 'alles ruhig', 'reports', s.reports_open > 0),
