@@ -100,7 +100,11 @@
     </q-dialog>
 
     <q-page-container>
-      <router-view />
+      <!-- key: Bei einem Wechsel zwischen zwei Seiten gleicher Art (Event A ->
+           Event B, Gruppe A -> Gruppe B) die Seite neu aufbauen. Ohne das
+           bliebe der alte Inhalt stehen, weil die Seiten ihre ID nur einmal
+           beim Start lesen. -->
+      <router-view :key="route.path" />
     </q-page-container>
 
     <!-- Dialoge, die von jeder Seite aus geoeffnet werden koennen -->
