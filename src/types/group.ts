@@ -14,6 +14,8 @@ export interface Group {
   // 1 = jede Woche, 2 = alle 2 Wochen ...; null = einmalig
   meetup_repeat_weeks?: number | null;
   skill_level?: string;
+  // Kosten pro Person und Termin in Cent (null = kostenlos)
+  fee_cents?: number | null;
 }
 
 export interface GroupMember {
@@ -28,6 +30,7 @@ export interface GroupMember {
 export interface GroupMemberWithName extends GroupMember {
   first_name: string | null;
   city: string | null;
+  username: string | null;
 }
 
 // Rueckgabe von get_group_preview (Einladelink-Vorschau)

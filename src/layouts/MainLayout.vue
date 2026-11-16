@@ -146,7 +146,7 @@ const tabItems = [
 // Moderation steht fuer Admins oben (Desktop) bzw. im Profil (Handy).
 const desktopItems = computed(() =>
   authStore.profile?.is_admin
-    ? [...tabItems, { to: '/admin', label: 'Moderation', icon: 'shield' }]
+    ? [...tabItems, { to: '/admin', label: 'Admin', icon: 'shield' }]
     : tabItems,
 );
 

@@ -86,6 +86,10 @@
               <div v-if="group.city" class="row items-center no-wrap">
                 <q-icon name="place" size="18px" class="text-primary q-mr-sm" />{{ group.city }}
               </div>
+              <div v-if="group.fee_cents" class="row items-center no-wrap">
+                <q-icon name="payments" size="18px" class="text-primary q-mr-sm" />
+                {{ formatEuro(group.fee_cents) }} pro Person
+              </div>
               <div class="row items-center no-wrap">
                 <q-icon name="groups" size="18px" class="text-primary q-mr-sm" />
                 {{ activeCount }} von {{ group.max_members }} dabei
@@ -103,6 +107,8 @@
               :meetup-at="group.next_meetup_at"
               :my-id="authStore.user?.id ?? null"
               :can-rsvp="isActiveMember"
+              :is-creator="isCreator"
+              :fee-cents="group.fee_cents ?? null"
             />
           </div>
         </q-card>
@@ -150,13 +156,13 @@
         <q-list bordered separator class="rounded-borders">
           <q-item v-for="m in activeMembers" :key="m.id" clickable @click="ui.showProfile(m.user_id)">
             <q-item-section avatar>
-              <q-avatar color="primary" size="32px">
+              <q-avatar size="32px" class="text-weight-bold" :style="avatarStyle(m.user_id)">
                 {{ (m.first_name?.[0] ?? '?').toUpperCase() }}
               </q-avatar>
             </q-item-section>
             <q-item-section>
               <q-item-label>{{ m.first_name ?? 'Unbekannt' }}</q-item-label>
-              <q-item-label caption>{{ m.city }}</q-item-label>
+              <q-item-label caption>{{ memberCaption(m) }}</q-item-label>
             </q-item-section>
             <q-item-section side>
               <q-badge v-if="m.user_id === group.created_by" color="primary" label="Ersteller" />
@@ -180,7 +186,7 @@
               </q-item-section>
               <q-item-section>
                 <q-item-label>{{ m.first_name ?? 'Unbekannt' }}</q-item-label>
-                <q-item-label caption>{{ m.city }}</q-item-label>
+                <q-item-label caption>{{ memberCaption(m) }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -245,6 +251,15 @@
               :rules="[(v: number) => (v && v >= Math.max(1, activeMembers.length)) || `Mindestens ${Math.max(1, activeMembers.length)}`]"
             />
             <q-select v-model="edit.skill_level" :options="skillLevels" emit-value map-options label="Niveau" />
+            <q-input
+              v-model="edit.fee"
+              label="Kosten pro Person (optional)"
+              suffix="€"
+              inputmode="decimal"
+              placeholder="z. B. 5,00"
+              hint="Nur als Merkliste: Du hakst ab, wer bezahlt hat. Die App wickelt keine Zahlungen ab."
+              :rules="[(v: string) => parseEuro(v) !== undefined || 'Bitte einen Betrag wie 5 oder 5,50 eingeben']"
+            />
           </q-card-section>
           <q-card-actions align="right">
             <q-btn v-close-popup flat no-caps label="Abbrechen" />
@@ -319,6 +334,8 @@ import { useModerationStore } from '@/stores/moderation-store';
 import { useUiStore } from '@/stores/ui-store';
 import { friendlyError } from '@/utils/errors';
 import { downloadIcs } from '@/utils/ics';
+import { avatarStyle } from '@/utils/avatar';
+import { formatEuro, parseEuro } from '@/utils/money';
 import { shareOrCopy } from '@/utils/share';
 import type { ReportReason } from '@/types/report';
 import { repeatOptions } from '@/data/repeat';
@@ -519,7 +536,7 @@ async function onReport(reason: ReportReason) {
 // Gruppe bearbeiten (nur Ersteller)
 const editOpen = ref(false);
 const savingEdit = ref(false);
-const edit = reactive({ name: '', description: '', max_members: 10, skill_level: 'alle', sport: 'sonstiges' });
+const edit = reactive({ name: '', description: '', max_members: 10, skill_level: 'alle', sport: 'sonstiges', fee: '' });
 function openEdit() {
   if (!group.value) return;
   edit.name = group.value.name;
@@ -527,6 +544,7 @@ function openEdit() {
   edit.max_members = group.value.max_members;
   edit.skill_level = group.value.skill_level ?? 'alle';
   edit.sport = group.value.sport;
+  edit.fee = group.value.fee_cents ? (group.value.fee_cents / 100).toFixed(2).replace('.', ',') : '';
   editOpen.value = true;
 }
 async function onSaveEdit() {
@@ -538,6 +556,7 @@ async function onSaveEdit() {
       max_members: edit.max_members,
       skill_level: edit.skill_level,
       sport: edit.sport,
+      fee_cents: parseEuro(edit.fee) ?? null,
     });
     editOpen.value = false;
     notifySuccess('Gruppe gespeichert');
@@ -547,6 +566,11 @@ async function onSaveEdit() {
   } finally {
     savingEdit.value = false;
   }
+}
+
+// Zweite Zeile in der Mitgliederliste: Nutzername (eindeutig) und Stadt
+function memberCaption(m: GroupMemberWithName): string {
+  return [m.username ? `@${m.username}` : null, m.city].filter(Boolean).join(' · ');
 }
 
 function onRemoveMember(m: GroupMemberWithName) {

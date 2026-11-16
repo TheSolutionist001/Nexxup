@@ -9,9 +9,12 @@
 
       <template v-else>
         <q-card-section class="row items-center no-wrap" style="gap: 14px">
-          <q-avatar color="primary" size="56px">{{ (profile.first_name?.[0] ?? '?').toUpperCase() }}</q-avatar>
+          <q-avatar size="56px" class="text-weight-bold" :style="avatarStyle(profile.id)">
+            {{ (profile.first_name?.[0] ?? '?').toUpperCase() }}
+          </q-avatar>
           <div class="col" style="min-width: 0">
             <div class="nx-display ellipsis" style="font-size: 18px">{{ profile.first_name ?? 'Unbekannt' }}</div>
+            <div v-if="profile.username" class="text-caption text-grey">@{{ profile.username }}</div>
             <div v-if="profile.city" class="text-caption text-grey">
               <q-icon name="place" size="14px" /> {{ profile.city }}
             </div>
@@ -67,6 +70,7 @@ import { useModerationStore } from '@/stores/moderation-store';
 import { useUiStore } from '@/stores/ui-store';
 import { useStartChat } from '@/composables/useStartChat';
 import { getSport } from '@/data/sports';
+import { avatarStyle } from '@/utils/avatar';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import type { PublicProfile } from '@/types/profile';
 import type { ReportReason } from '@/types/report';
@@ -96,7 +100,7 @@ watch(
     profile.value = null;
     try {
       const [{ data }, blocked] = await Promise.all([
-        supabase.from('public_profiles').select('id, first_name, city, bio, sports').eq('id', id).maybeSingle(),
+        supabase.from('public_profiles').select('id, first_name, city, bio, sports, username').eq('id', id).maybeSingle(),
         chatStore.fetchBlocked().catch(() => []),
       ]);
       profile.value = data as PublicProfile | null;
