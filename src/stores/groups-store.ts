@@ -77,8 +77,19 @@ export const useGroupsStore = defineStore('groups', () => {
       .eq('meetup_at', meetupAt);
     if (error) throw error;
     const rows = (data ?? []) as { user_id: string; status: RsvpStatus }[];
-    const names = await fetchFirstNames(rows.map((r) => r.user_id));
-    return rows.map((r) => ({ ...r, first_name: names.get(r.user_id) ?? null }));
+    if (rows.length === 0) return [];
+    // Name + Nutzername (gleiche Vornamen muessen unterscheidbar bleiben)
+    const { data: profiles, error: pErr } = await supabase
+      .from('public_profiles')
+      .select('id, first_name, username')
+      .in('id', rows.map((r) => r.user_id));
+    if (pErr) throw pErr;
+    const byId = new Map((profiles ?? []).map((p) => [p.id as string, p]));
+    return rows.map((r) => ({
+      ...r,
+      first_name: (byId.get(r.user_id)?.first_name as string | null | undefined) ?? null,
+      username: (byId.get(r.user_id)?.username as string | null | undefined) ?? null,
+    }));
   }
 
   async function setRsvp(groupId: string, status: RsvpStatus | null): Promise<void> {

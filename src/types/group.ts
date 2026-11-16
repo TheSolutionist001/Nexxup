@@ -82,6 +82,7 @@ export interface MeetupRsvp {
   user_id: string;
   status: RsvpStatus;
   first_name: string | null;
+  username: string | null;
 }
 
 export interface PollOptionView {

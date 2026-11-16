@@ -57,7 +57,10 @@
           <q-item-section side>
             <q-checkbox :model-value="paid.includes(p.user_id)" dense color="primary" @update:model-value="togglePaid(p.user_id)" @click.stop />
           </q-item-section>
-          <q-item-section>{{ p.first_name ?? 'Unbekannt' }}</q-item-section>
+          <q-item-section>
+            <q-item-label>{{ p.first_name ?? 'Unbekannt' }}</q-item-label>
+            <q-item-label v-if="p.username" caption>@{{ p.username }}</q-item-label>
+          </q-item-section>
           <q-item-section side class="text-caption">
             {{ paid.includes(p.user_id) ? 'bezahlt' : 'offen' }}
           </q-item-section>
